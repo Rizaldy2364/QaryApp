@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router'
-import { Home, BookOpen, CircleDot, Bookmark, User, Compass } from 'lucide-react'
+import { Home, BookOpen, Bookmark, User, Compass } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
 // TODO: Desain resmi sidebar desktop belum ada di desain.md, implementasi ini sebagai fallback responsif
@@ -13,7 +13,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { name: 'Beranda', path: '/', icon: Home, exact: true },
   { name: "Al-Qur'an & Doa", path: '/quran-doa', icon: BookOpen },
-  { name: 'Dzikir', path: '/dzikir', icon: CircleDot },
+  { name: 'Arah Kiblat', path: '/kiblat', icon: Compass },
   { name: 'Tersimpan', path: '/tersimpan', icon: Bookmark },
   { name: 'Profil', path: '/profil', icon: User },
 ]

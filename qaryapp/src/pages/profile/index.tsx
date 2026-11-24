@@ -74,7 +74,7 @@ export function ProfilePage() {
   const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'
 
   return (
-    <div className="pb-16">
+    <div className="pb-24 lg:pb-8">
       <Header title="Profil" />
 
       <div className="mx-auto max-w-[720px] px-4 pt-4 space-y-6">

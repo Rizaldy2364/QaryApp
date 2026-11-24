@@ -255,7 +255,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="w-full overflow-x-hidden pb-16">
+    <div className="w-full overflow-x-hidden pb-24 lg:pb-8">
       <h1 className="sr-only">Beranda QaryApp</h1>
       {/* Banner offline */}
       {(status === 'offline' || isStale) && (
@@ -525,9 +525,9 @@ export default function HomePage() {
             >
               <div className="flex-1 min-w-0 pr-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-text">
+                  <h2 className="text-sm font-semibold text-text">
                     Kemajuan Al-Qur'an
-                  </h3>
+                  </h2>
                   <ChevronRight className="h-4 w-4 text-text-muted group-hover:text-primary transition-colors" />
                 </div>
 

@@ -12,6 +12,7 @@ import NotFoundPage from '../pages/not-found'
 
 // Rute lainnya di-lazy-load agar tidak membebani bundel awal
 const QuranDoaPage = lazy(() => import('../pages/quran-doa'))
+const QiblaPage = lazy(() => import('../pages/qibla'))
 const DzikirPage = lazy(() => import('../pages/dzikir'))
 const BookmarksPage = lazy(() => import('../pages/bookmarks'))
 const ProfilePage = lazy(() => import('../pages/profile'))
@@ -41,6 +42,7 @@ export function AppRouter() {
           <Route element={<TabLayout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/quran-doa" element={<QuranDoaPage />} />
+            <Route path="/kiblat" element={<QiblaPage />} />
             <Route path="/dzikir" element={<DzikirPage />} />
             <Route path="/tersimpan" element={<BookmarksPage />} />
             <Route path="/profil" element={<ProfilePage />} />

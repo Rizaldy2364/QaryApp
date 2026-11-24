@@ -1,12 +1,14 @@
 import { useNavigate, useLocation } from 'react-router'
 import { ArrowLeft } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { cn } from '../../lib/utils'
 
 interface HeaderProps {
   title: string
   subtitle?: string
   showBack?: boolean
   rightAction?: ReactNode
+  className?: string
 }
 
 function getFallbackRoute(pathname: string): string {
@@ -30,6 +32,7 @@ export function Header({
   subtitle,
   showBack = false,
   rightAction,
+  className,
 }: HeaderProps) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -47,7 +50,12 @@ export function Header({
   }
 
   return (
-    <header className="sticky top-0 z-30 w-full bg-surface/90 backdrop-blur-md border-b border-border">
+    <header
+      className={cn(
+        'w-full transition-colors',
+        className,
+      )}
+    >
       <div className="mx-auto flex h-11 max-w-180 items-center justify-between px-4">
         <div className="flex h-11 w-11 items-center justify-start">
           {showBack ? (
@@ -55,7 +63,7 @@ export function Header({
               type="button"
               onClick={handleBack}
               aria-label="Kembali"
-              className="flex h-11 w-11 items-center justify-center rounded-[10px] text-text hover:bg-primary-soft/40 active:bg-primary-soft/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-colors duration-150 motion-reduce:transition-none"
+              className="flex h-11 w-11 items-center justify-center rounded-[10px] text-text hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-all duration-150 motion-reduce:transition-none cursor-pointer"
             >
               <ArrowLeft size={20} strokeWidth={1.75} />
             </button>
