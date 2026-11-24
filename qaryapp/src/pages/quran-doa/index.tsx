@@ -329,13 +329,13 @@ export function QuranDoaPage() {
                       {card.arabicText ? (
                         <p
                           dir="rtl"
-                          className="font-arabic text-right text-base leading-relaxed line-clamp-2 text-surface drop-shadow-xs"
+                          className="font-arabic text-right text-base leading-relaxed line-clamp-2 text-art-cream drop-shadow-xs"
                         >
                           {card.arabicText}
                         </p>
                       ) : null}
                       <p
-                        className={`text-xs leading-relaxed text-surface/90 line-clamp-3 mt-1.5 ${
+                        className={`text-xs leading-relaxed text-art-cream/95 line-clamp-3 mt-1.5 ${
                           card.type === 'wisdom' ? 'italic text-sm line-clamp-4' : ''
                         }`}
                       >
@@ -344,13 +344,13 @@ export function QuranDoaPage() {
                     </div>
 
                     <div className="flex items-center justify-between pt-1">
-                      <span className="text-[11px] font-medium text-gold drop-shadow-xs truncate max-w-[70%]">
+                      <span className="text-[11px] font-medium text-art-gold drop-shadow-xs truncate max-w-[70%]">
                         {card.sourceOrRef}
                       </span>
                       {card.actionUrl && (
                         <Link
                           to={card.actionUrl}
-                          className="inline-flex items-center gap-1 text-[11px] font-medium text-white hover:text-gold transition-colors"
+                          className="inline-flex items-center gap-1 text-[11px] font-medium text-white hover:text-art-gold transition-colors"
                         >
                           Lihat detail
                           <ChevronRight className="h-3 w-3" />
