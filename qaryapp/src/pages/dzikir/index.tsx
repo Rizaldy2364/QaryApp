@@ -27,10 +27,12 @@ import {
   resetDzikirProgress,
   saveDzikirProgress,
 } from '../../lib/storage'
+import { usePageTitle } from '../../lib/usePageTitle'
 import { cn } from '../../lib/utils'
 import type { Dzikir, DzikirProgress } from '../../types'
 
 export default function DzikirPage() {
+  usePageTitle('Dzikir Pagi & Petang')
   const [searchParams, setSearchParams] = useSearchParams()
   const { settings } = useSettings()
   const { todayData, timezone } = usePrayerTimes(settings.location)

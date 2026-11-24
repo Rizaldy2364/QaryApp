@@ -41,6 +41,35 @@ interface QaryAppDB {
   }
 }
 
+// ==========================================
+// FALLBACK PENYIMPANAN MEMORI SEMENTARA
+// (Untuk browser private mode ketat tanpa IndexedDB/localStorage)
+// ==========================================
+const memoryStorage = new Map<string, unknown>()
+let isStorageRestricted = false
+
+export function isRestrictedStorage(): boolean {
+  return isStorageRestricted
+}
+
+function safeLocalStorageGet(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    isStorageRestricted = true
+    return (memoryStorage.get(key) as string) ?? null
+  }
+}
+
+function safeLocalStorageSet(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    isStorageRestricted = true
+    memoryStorage.set(key, value)
+  }
+}
+
 let dbPromise: Promise<IDBPDatabase<QaryAppDB>> | null = null
 
 function logDevWarning(action: string, error: unknown) {
@@ -51,36 +80,65 @@ function logDevWarning(action: string, error: unknown) {
 
 function getDatabase(): Promise<IDBPDatabase<QaryAppDB>> {
   if (!dbPromise) {
-    dbPromise = openDB<QaryAppDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains('ayah_bookmarks')) {
-          db.createObjectStore('ayah_bookmarks', { keyPath: 'id' })
-        }
-        if (!db.objectStoreNames.contains('doa_favorites')) {
-          db.createObjectStore('doa_favorites', { keyPath: 'doaId' })
-        }
-        if (!db.objectStoreNames.contains('prayer_logs')) {
-          const prayerStore = db.createObjectStore('prayer_logs', {
-            keyPath: 'id',
-          })
-          prayerStore.createIndex('by-date', 'date')
-        }
-        if (!db.objectStoreNames.contains('cache')) {
-          db.createObjectStore('cache', { keyPath: 'key' })
-        }
-      },
-    })
+    try {
+      dbPromise = openDB<QaryAppDB>(DB_NAME, DB_VERSION, {
+        upgrade(db) {
+          if (!db.objectStoreNames.contains('ayah_bookmarks')) {
+            db.createObjectStore('ayah_bookmarks', { keyPath: 'id' })
+          }
+          if (!db.objectStoreNames.contains('doa_favorites')) {
+            db.createObjectStore('doa_favorites', { keyPath: 'doaId' })
+          }
+          if (!db.objectStoreNames.contains('prayer_logs')) {
+            const prayerStore = db.createObjectStore('prayer_logs', {
+              keyPath: 'id',
+            })
+            prayerStore.createIndex('by-date', 'date')
+          }
+          if (!db.objectStoreNames.contains('cache')) {
+            db.createObjectStore('cache', { keyPath: 'key' })
+          }
+        },
+      }).catch((err) => {
+        isStorageRestricted = true
+        throw err
+      })
+    } catch {
+      isStorageRestricted = true
+    }
   }
-  return dbPromise
+  return dbPromise!
 }
 
 // ==========================================
-// PENGATURAN (LocalStorage)
+// PERSISTENSI PENYIMPANAN PERAMBAN (PERSISTENT STORAGE API)
+// ==========================================
+let hasAttemptedPersist = false
+
+export async function requestPersistentStorage(): Promise<boolean> {
+  if (hasAttemptedPersist) return false
+  hasAttemptedPersist = true
+  if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
+    try {
+      const isPersisted = await navigator.storage.persist()
+      if (import.meta.env.DEV) {
+        console.info('[QaryApp Storage] Navigator persistent storage:', isPersisted)
+      }
+      return isPersisted
+    } catch {
+      return false
+    }
+  }
+  return false
+}
+
+// ==========================================
+// PENGATURAN (LocalStorage / Fallback)
 // ==========================================
 
 export function getSettings(): AppSettings {
   try {
-    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY)
+    const raw = safeLocalStorageGet(SETTINGS_STORAGE_KEY)
     if (!raw) return DEFAULT_APP_SETTINGS
     const parsed = JSON.parse(raw)
     return {
@@ -96,17 +154,16 @@ export function getSettings(): AppSettings {
           : DEFAULT_APP_SETTINGS.showTransliteration,
       location: parsed.location ?? DEFAULT_APP_SETTINGS.location,
     }
-  } catch (error) {
-    logDevWarning('membaca pengaturan', error)
+  } catch {
     return DEFAULT_APP_SETTINGS
   }
 }
 
 export function saveSettings(settings: AppSettings): void {
   try {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings))
+    safeLocalStorageSet(SETTINGS_STORAGE_KEY, JSON.stringify(settings))
     window.dispatchEvent(
-      new CustomEvent(SETTINGS_CHANGE_EVENT, { detail: settings }),
+      new CustomEvent<AppSettings>(SETTINGS_CHANGE_EVENT, { detail: settings }),
     )
   } catch (error) {
     logDevWarning('menyimpan pengaturan', error)
@@ -115,44 +172,55 @@ export function saveSettings(settings: AppSettings): void {
 
 export function updateSettings(partial: Partial<AppSettings>): AppSettings {
   const current = getSettings()
-  const updated: AppSettings = { ...current, ...partial }
+  const updated: AppSettings = {
+    ...current,
+    ...partial,
+  }
   saveSettings(updated)
   return updated
 }
 
 // ==========================================
-// TERAKHIR DIBACA (LocalStorage)
+// TERAKHIR DIBACA (LocalStorage / Fallback)
 // ==========================================
 
 export function getLastRead(): LastRead | null {
   try {
-    const raw = localStorage.getItem(LAST_READ_STORAGE_KEY)
+    const raw = safeLocalStorageGet(LAST_READ_STORAGE_KEY)
     if (!raw) return null
     return JSON.parse(raw) as LastRead
   } catch (error) {
-    logDevWarning('membaca terakhir dibaca', error)
+    logDevWarning('membaca penanda terakhir dibaca', error)
     return null
   }
 }
 
-export function saveLastRead(lastRead: LastRead): void {
+export function saveLastRead(surahNumber: number, ayahNumber: number): void {
   try {
-    localStorage.setItem(LAST_READ_STORAGE_KEY, JSON.stringify(lastRead))
+    const lastRead: LastRead = {
+      surahNumber,
+      ayahNumber,
+      updatedAt: new Date().toISOString(),
+    }
+    safeLocalStorageSet(LAST_READ_STORAGE_KEY, JSON.stringify(lastRead))
   } catch (error) {
-    logDevWarning('menyimpan terakhir dibaca', error)
+    logDevWarning('menyimpan penanda terakhir dibaca', error)
   }
 }
 
 // ==========================================
-// BOOKMARK AYAT (IndexedDB)
+// BOOKMARK AYAT (IndexedDB / Fallback)
 // ==========================================
 
 export async function addAyahBookmark(bookmark: AyahBookmark): Promise<void> {
+  // Panggil persistensi tanpa blokir
+  requestPersistentStorage()
   try {
     const db = await getDatabase()
     await db.put('ayah_bookmarks', bookmark)
   } catch (error) {
     logDevWarning('menambah bookmark ayat', error)
+    memoryStorage.set(`bookmark:${bookmark.id}`, bookmark)
   }
 }
 
@@ -162,6 +230,7 @@ export async function removeAyahBookmark(id: string): Promise<void> {
     await db.delete('ayah_bookmarks', id)
   } catch (error) {
     logDevWarning('menghapus bookmark ayat', error)
+    memoryStorage.delete(`bookmark:${id}`)
   }
 }
 
@@ -170,32 +239,27 @@ export async function getAyahBookmarks(): Promise<AyahBookmark[]> {
     const db = await getDatabase()
     return await db.getAll('ayah_bookmarks')
   } catch (error) {
-    logDevWarning('mengambil daftar bookmark ayat', error)
-    return []
-  }
-}
-
-export async function isAyahBookmarked(id: string): Promise<boolean> {
-  try {
-    const db = await getDatabase()
-    const item = await db.get('ayah_bookmarks', id)
-    return item !== undefined
-  } catch (error) {
-    logDevWarning('memeriksa bookmark ayat', error)
-    return false
+    logDevWarning('mengambil bookmark ayat', error)
+    const fallbackList: AyahBookmark[] = []
+    for (const [k, v] of memoryStorage.entries()) {
+      if (k.startsWith('bookmark:')) fallbackList.push(v as AyahBookmark)
+    }
+    return fallbackList
   }
 }
 
 // ==========================================
-// FAVORIT DOA (IndexedDB)
+// FAVORIT DOA (IndexedDB / Fallback)
 // ==========================================
 
 export async function addDoaFavorite(favorite: DoaFavorite): Promise<void> {
+  requestPersistentStorage()
   try {
     const db = await getDatabase()
     await db.put('doa_favorites', favorite)
   } catch (error) {
     logDevWarning('menambah favorit doa', error)
+    memoryStorage.set(`doa_fav:${favorite.doaId}`, favorite)
   }
 }
 
@@ -207,6 +271,7 @@ export async function removeDoaFavorite(
     await db.delete('doa_favorites', doaId)
   } catch (error) {
     logDevWarning('menghapus favorit doa', error)
+    memoryStorage.delete(`doa_fav:${doaId}`)
   }
 }
 
@@ -216,23 +281,16 @@ export async function getDoaFavorites(): Promise<DoaFavorite[]> {
     return await db.getAll('doa_favorites')
   } catch (error) {
     logDevWarning('mengambil daftar favorit doa', error)
-    return []
-  }
-}
-
-export async function isDoaFavorite(doaId: string | number): Promise<boolean> {
-  try {
-    const db = await getDatabase()
-    const item = await db.get('doa_favorites', doaId)
-    return item !== undefined
-  } catch (error) {
-    logDevWarning('memeriksa favorit doa', error)
-    return false
+    const fallbackList: DoaFavorite[] = []
+    for (const [k, v] of memoryStorage.entries()) {
+      if (k.startsWith('doa_fav:')) fallbackList.push(v as DoaFavorite)
+    }
+    return fallbackList
   }
 }
 
 // ==========================================
-// CATATAN SHOLAT (IndexedDB)
+// CATATAN SHOLAT (IndexedDB / Fallback)
 // ==========================================
 
 export async function markPrayer(
@@ -252,6 +310,11 @@ export async function markPrayer(
     await db.put('prayer_logs', entry)
   } catch (error) {
     logDevWarning('menandai sholat', error)
+    memoryStorage.set(`prayer_log:${date}:${prayer}`, {
+      date,
+      prayer,
+      markedAt: markedAt ?? new Date().toISOString(),
+    })
   }
 }
 
@@ -265,6 +328,7 @@ export async function unmarkPrayer(
     await db.delete('prayer_logs', id)
   } catch (error) {
     logDevWarning('membatalkan tanda sholat', error)
+    memoryStorage.delete(`prayer_log:${date}:${prayer}`)
   }
 }
 
@@ -274,13 +338,40 @@ export async function getPrayerLogs(date: string): Promise<PrayerLogEntry[]> {
     return await db.getAllFromIndex('prayer_logs', 'by-date', date)
   } catch (error) {
     logDevWarning('mengambil catatan sholat', error)
-    return []
+    const logs: PrayerLogEntry[] = []
+    for (const [k, v] of memoryStorage.entries()) {
+      if (k.startsWith(`prayer_log:${date}:`)) logs.push(v as PrayerLogEntry)
+    }
+    return logs
   }
 }
 
 // ==========================================
-// CACHE UMUM (IndexedDB)
+// CACHE UMUM (IndexedDB dengan Proteksi Kuota & LRU)
 // ==========================================
+
+/**
+ * Membersihkan 20% cache tertua saat mendekati atau mengalami QuotaExceededError
+ */
+async function pruneOldestCache(db: IDBPDatabase<QaryAppDB>): Promise<void> {
+  try {
+    const allCache = await db.getAll('cache')
+    if (allCache.length <= 2) return
+    // Urutkan berdasarkan waktu simpan tertua
+    allCache.sort((a, b) => new Date(a.savedAt).getTime() - new Date(b.savedAt).getTime())
+    const countToDelete = Math.max(1, Math.floor(allCache.length * 0.25))
+    const tx = db.transaction('cache', 'readwrite')
+    for (let i = 0; i < countToDelete; i++) {
+      await tx.store.delete(allCache[i].key)
+    }
+    await tx.done
+    if (import.meta.env.DEV) {
+      console.warn(`[QaryApp Storage] Menghapus ${countToDelete} entri cache tertua untuk melegakan kuota.`)
+    }
+  } catch {
+    // Abaikan kegagalan pruning
+  }
+}
 
 export async function setCache<T>(key: string, value: T): Promise<void> {
   try {
@@ -290,9 +381,24 @@ export async function setCache<T>(key: string, value: T): Promise<void> {
       value,
       savedAt: new Date().toISOString(),
     }
-    await db.put('cache', entry as CacheEntry<unknown>)
+    try {
+      await db.put('cache', entry as CacheEntry<unknown>)
+    } catch (putErr) {
+      // Tangani QuotaExceededError dengan menghapus cache tertua lalu coba lagi
+      if (putErr instanceof Error && (putErr.name === 'QuotaExceededError' || putErr.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+        await pruneOldestCache(db)
+        await db.put('cache', entry as CacheEntry<unknown>)
+      } else {
+        throw putErr
+      }
+    }
   } catch (error) {
     logDevWarning('menyimpan cache', error)
+    memoryStorage.set(`cache:${key}`, {
+      key,
+      value,
+      savedAt: new Date().toISOString(),
+    })
   }
 }
 
@@ -304,7 +410,8 @@ export async function getCache<T>(key: string): Promise<CacheEntry<T> | null> {
     return entry as CacheEntry<T>
   } catch (error) {
     logDevWarning('mengambil cache', error)
-    return null
+    const fallback = memoryStorage.get(`cache:${key}`)
+    return fallback ? (fallback as CacheEntry<T>) : null
   }
 }
 
@@ -314,7 +421,7 @@ export async function getCache<T>(key: string): Promise<CacheEntry<T> | null> {
 
 export function getRecentLocations(): UserLocation[] {
   try {
-    const raw = localStorage.getItem(RECENT_LOCATIONS_STORAGE_KEY)
+    const raw = safeLocalStorageGet(RECENT_LOCATIONS_STORAGE_KEY)
     if (!raw) return []
     return JSON.parse(raw) as UserLocation[]
   } catch (error) {
@@ -326,7 +433,6 @@ export function getRecentLocations(): UserLocation[] {
 export function addRecentLocation(location: UserLocation): void {
   try {
     const current = getRecentLocations()
-    // Hapus duplikat berdasarkan nama kota & negara
     const filtered = current.filter(
       (item) =>
         !(
@@ -335,7 +441,7 @@ export function addRecentLocation(location: UserLocation): void {
         ),
     )
     const updated = [location, ...filtered].slice(0, 5)
-    localStorage.setItem(RECENT_LOCATIONS_STORAGE_KEY, JSON.stringify(updated))
+    safeLocalStorageSet(RECENT_LOCATIONS_STORAGE_KEY, JSON.stringify(updated))
   } catch (error) {
     logDevWarning('menyimpan riwayat lokasi', error)
   }
@@ -358,7 +464,7 @@ export function getDzikirProgress(
 ): DzikirProgress | null {
   try {
     const key = getDzikirStorageKey(date, period)
-    const raw = localStorage.getItem(key)
+    const raw = safeLocalStorageGet(key)
     if (!raw) return null
     return JSON.parse(raw) as DzikirProgress
   } catch (error) {
@@ -370,7 +476,7 @@ export function getDzikirProgress(
 export function saveDzikirProgress(progress: DzikirProgress): void {
   try {
     const key = getDzikirStorageKey(progress.date, progress.period)
-    localStorage.setItem(key, JSON.stringify(progress))
+    safeLocalStorageSet(key, JSON.stringify(progress))
   } catch (error) {
     logDevWarning('menyimpan kemajuan dzikir', error)
   }
@@ -382,8 +488,12 @@ export function resetDzikirProgress(
 ): void {
   try {
     const key = getDzikirStorageKey(date, period)
-    localStorage.removeItem(key)
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      memoryStorage.delete(key)
+    }
   } catch (error) {
-    logDevWarning('mereset kemajuan dzikir', error)
+    logDevWarning('mengatur ulang kemajuan dzikir', error)
   }
 }

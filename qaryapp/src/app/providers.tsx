@@ -8,9 +8,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 1000 * 60 * 5, // 5 menit
-            retry: 1,
-            refetchOnWindowFocus: false,
+            staleTime: 1000 * 60 * 10, // 10 menit bawaan
+            gcTime: 1000 * 60 * 60 * 24, // 24 jam di memori
+            retry: 2, // Maksimal 2x retry
+            refetchOnWindowFocus: false, // Jangan refetch saat tab kembali aktif
+            refetchOnReconnect: true, // Revalidasi saat koneksi pulih
           },
         },
       }),

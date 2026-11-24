@@ -10,9 +10,11 @@ import { EmptyState } from '../../components/feedback/EmptyState'
 import { ErrorState } from '../../components/feedback/ErrorState'
 import { loadDoaData } from '../../features/doa/api'
 import { matchDoa } from '../../features/doa/lib/search'
+import { usePageTitle } from '../../lib/usePageTitle'
 import type { Doa, DoaCategory } from '../../types'
 
 export default function DoaListPage() {
+  usePageTitle('Doa Harian')
   const [categories, setCategories] = useState<DoaCategory[]>([])
   const [doaList, setDoaList] = useState<Doa[]>([])
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all')

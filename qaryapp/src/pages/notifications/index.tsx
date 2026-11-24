@@ -1,8 +1,10 @@
 import { Bell } from 'lucide-react'
 import { Header } from '../../components/layout/Header'
 import { EmptyState } from '../../components/feedback/EmptyState'
+import { usePageTitle } from '../../lib/usePageTitle'
 
 export function NotificationsPage() {
+  usePageTitle('Notifikasi')
   return (
     <div className="pb-16">
       <Header

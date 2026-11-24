@@ -27,6 +27,8 @@ import { useAyahPlayer } from '../../features/quran/useAyahPlayer'
 import { useBookmarks } from '../../features/bookmarks/useBookmarks'
 import { useSettings } from '../../features/settings/useSettings'
 import { saveLastRead } from '../../lib/storage'
+import { usePageTitle } from '../../lib/usePageTitle'
+import NotFoundPage from '../not-found'
 import { cn } from '../../lib/utils'
 import type { ArabSize } from '../../types'
 import type { Ayah, Surah } from '../../features/quran/types'
@@ -291,6 +293,7 @@ export default function SurahDetailPage() {
   const { isBookmarked, toggleBookmark } = useBookmarks()
 
   const [surah, setSurah] = useState<Surah | null>(null)
+  usePageTitle(surah ? surah.nameLatin : isValidSurahNumber ? `Surah ${parsedSurahNumber}` : 'Surah')
   const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(!isValidSurahNumber)
   const [errorMessage, setErrorMessage] = useState(
@@ -400,11 +403,7 @@ export default function SurahDetailPage() {
 
         lastReadDebounceRef.current = setTimeout(() => {
           if (!document.hidden) {
-            saveLastRead({
-              surahNumber: parsedSurahNumber,
-              ayahNumber: ayahNum,
-              updatedAt: new Date().toISOString(),
-            })
+            saveLastRead(parsedSurahNumber, ayahNum)
           }
         }, 1000)
       },
@@ -481,6 +480,10 @@ export default function SurahDetailPage() {
   // - Surah 9: Tidak ada Bismillah
   // - Surah lainnya (2-8, 10-114): Tampilkan Bismillah di bagian atas sebelum ayat 1
   const showBismillahBanner = parsedSurahNumber !== 1 && parsedSurahNumber !== 9
+
+  if (!isValidSurahNumber) {
+    return <NotFoundPage />
+  }
 
   return (
     <div className={cn('min-h-screen', player.playingAyahNumber ? 'pb-28' : 'pb-12')}>

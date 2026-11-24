@@ -14,6 +14,8 @@
   --color-text: #16241C;
   --color-text-muted: #5A6B60;
   --color-danger: #B3402E;
+  --color-danger-soft: #FDE8E4;
+  --color-skeleton: #E6EADF;
   --color-art-green: #1F7A4D;
   --color-art-green-dark: #0B2E20;
   --color-art-gold: #E0B863;
@@ -34,6 +36,8 @@
   --color-text: #EAF1EC;
   --color-text-muted: #9DB0A4;
   --color-danger: #E8806F;
+  --color-danger-soft: #381A16;
+  --color-skeleton: #1D3025;
 }
 
 :root {

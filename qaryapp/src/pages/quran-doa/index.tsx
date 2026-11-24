@@ -7,6 +7,7 @@ import { IconButton } from '../../components/ui/IconButton'
 import { Skeleton } from '../../components/feedback/Skeleton'
 import { getSurahDetail } from '../../features/quran/api'
 import { loadDoaData } from '../../features/doa/api'
+import { usePageTitle } from '../../lib/usePageTitle'
 import type { Doa } from '../../types'
 import featuredData from '../../data/featured.json'
 import {
@@ -32,6 +33,7 @@ function getInitialReducedMotion(): boolean {
 }
 
 export function QuranDoaPage() {
+  usePageTitle("Al-Qur'an & Doa")
   const [cards, setCards] = useState<CarouselCardItem[]>([])
   const [loading, setLoading] = useState(true)
   const [activeIndex, setActiveIndex] = useState(0)

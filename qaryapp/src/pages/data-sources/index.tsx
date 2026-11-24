@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ExternalLink, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react'
 import { Header } from '../../components/layout/Header'
 import { Card } from '../../components/ui/Card'
+import { usePageTitle } from '../../lib/usePageTitle'
 import licensesData from '../../data/licenses.json'
 
 interface LicenseItem {
@@ -18,6 +19,7 @@ interface LicenseItem {
 }
 
 export function DataSourcesPage() {
+  usePageTitle('Sumber Data & Lisensi')
   const [openIds, setOpenIds] = useState<Set<string>>(() => new Set())
 
   const toggleOpen = (id: string) => {

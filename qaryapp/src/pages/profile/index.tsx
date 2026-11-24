@@ -9,6 +9,8 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import { useSettings } from '../../features/settings/useSettings'
 import { useTheme } from '../../app/theme-context'
 import { getSurahDetail } from '../../features/quran/api'
+import { isRestrictedStorage } from '../../lib/storage'
+import { usePageTitle } from '../../lib/usePageTitle'
 import type { ArabSize, ThemeMode } from '../../types'
 
 const themeOptions = [
@@ -24,6 +26,7 @@ const arabSizeOptions = [
 ]
 
 export function ProfilePage() {
+  usePageTitle('Profil')
   const { settings, updateSettings } = useSettings()
   const { theme, setTheme } = useTheme()
 
@@ -85,6 +88,9 @@ export function ProfilePage() {
               <div className="flex items-center gap-2">
                 <h2 className="text-base font-semibold text-text">Belum masuk</h2>
                 <Badge variant="default">Segera hadir</Badge>
+                {isRestrictedStorage() && (
+                  <Badge variant="saved">Penyimpanan terbatas</Badge>
+                )}
               </div>
               <p className="mt-1 text-xs text-text-muted leading-relaxed">
                 Masuk untuk mengamankan bookmark dan menyinkronkannya antar perangkat.

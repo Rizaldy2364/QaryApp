@@ -13,6 +13,7 @@ import { useBookmarks } from '../../features/bookmarks/useBookmarks'
 import { useDoaFavorites } from '../../features/doa/useDoaFavorites'
 import { getSurahDetail } from '../../features/quran/api'
 import { loadDoaData } from '../../features/doa/api'
+import { usePageTitle } from '../../lib/usePageTitle'
 import type { Doa } from '../../types'
 
 interface LoadedAyahBookmark {
@@ -25,6 +26,7 @@ interface LoadedAyahBookmark {
 }
 
 export function BookmarksPage() {
+  usePageTitle('Tersimpan')
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const activeTab = searchParams.get('tab') === 'doa' ? 'doa' : 'ayat'

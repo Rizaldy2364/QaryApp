@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, Link } from 'react-router'
+import { useParams } from 'react-router'
 import { Heart } from 'lucide-react'
 import { Header } from '../../components/layout/Header'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { IconButton } from '../../components/ui/IconButton'
-import { Button } from '../../components/ui/Button'
 import { Skeleton } from '../../components/feedback/Skeleton'
-import { ErrorState } from '../../components/feedback/ErrorState'
 import { loadDoaData } from '../../features/doa/api'
 import { useDoaFavorites } from '../../features/doa/useDoaFavorites'
 import { useSettings } from '../../features/settings/useSettings'
+import { usePageTitle } from '../../lib/usePageTitle'
+import NotFoundPage from '../not-found'
 import { cn } from '../../lib/utils'
 import type { Doa, DoaCategory } from '../../types'
 
@@ -23,6 +23,7 @@ export default function DoaDetailPage() {
   const [categories, setCategories] = useState<DoaCategory[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(false)
+  usePageTitle(doa ? doa.title : 'Detail Doa')
 
   useEffect(() => {
     let ignore = false
@@ -105,18 +106,7 @@ export default function DoaDetailPage() {
             <Skeleton className="h-28 w-full rounded-2xl" />
           </div>
         ) : isError || !doa ? (
-          <div className="pt-8">
-            <ErrorState
-              title="Doa Tidak Ditemukan"
-              description="Doa yang Anda cari tidak tersedia atau tautan salah."
-              retryText="Kembali ke Daftar Doa"
-            />
-            <div className="flex justify-center mt-4">
-              <Link to="/doa">
-                <Button variant="primary">Kembali ke Daftar Doa</Button>
-              </Link>
-            </div>
-          </div>
+          <NotFoundPage />
         ) : (
           <div className="space-y-4">
             {/* Badge Kategori & Penanda Dev */}

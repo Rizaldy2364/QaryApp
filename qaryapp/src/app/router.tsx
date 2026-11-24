@@ -2,25 +2,30 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router'
 import { TabLayout } from '../components/layout/TabLayout'
 import { StackLayout } from '../components/layout/StackLayout'
+import { PageSkeleton } from '../components/layout/PageSkeleton'
+import { ScrollToTop } from '../components/layout/ScrollToTop'
+import { ErrorBoundary } from '../components/feedback/ErrorBoundary'
 
-// Pages
+// Beranda dan NotFound dimuat langsung untuk responsivitas instan
 import HomePage from '../pages/home'
-import QuranDoaPage from '../pages/quran-doa'
-import DzikirPage from '../pages/dzikir'
-import BookmarksPage from '../pages/bookmarks'
-import ProfilePage from '../pages/profile'
-import SurahListPage from '../pages/surah-list'
-import SurahDetailPage from '../pages/surah-detail'
-import DoaListPage from '../pages/doa-list'
-import DoaDetailPage from '../pages/doa-detail'
-import LocationPage from '../pages/location'
-import CountryPage from '../pages/country'
-import PrayerTimesPage from '../pages/prayer-times'
-import NotificationsPage from '../pages/notifications'
-import DataSourcesPage from '../pages/data-sources'
 import NotFoundPage from '../pages/not-found'
 
-// Halaman dev hanya diimpor dinamis saat mode dev, sehingga benar-benar tidak ikut ke build produksi
+// Rute lainnya di-lazy-load agar tidak membebani bundel awal
+const QuranDoaPage = lazy(() => import('../pages/quran-doa'))
+const DzikirPage = lazy(() => import('../pages/dzikir'))
+const BookmarksPage = lazy(() => import('../pages/bookmarks'))
+const ProfilePage = lazy(() => import('../pages/profile'))
+const SurahListPage = lazy(() => import('../pages/surah-list'))
+const SurahDetailPage = lazy(() => import('../pages/surah-detail'))
+const DoaListPage = lazy(() => import('../pages/doa-list'))
+const DoaDetailPage = lazy(() => import('../pages/doa-detail'))
+const LocationPage = lazy(() => import('../pages/location'))
+const CountryPage = lazy(() => import('../pages/country'))
+const PrayerTimesPage = lazy(() => import('../pages/prayer-times'))
+const NotificationsPage = lazy(() => import('../pages/notifications'))
+const DataSourcesPage = lazy(() => import('../pages/data-sources'))
+
+// Halaman dev hanya diimpor dinamis saat mode dev
 const DevComponentsPage = import.meta.env.DEV
   ? lazy(() => import('../pages/dev/components'))
   : null
@@ -28,40 +33,41 @@ const DevComponentsPage = import.meta.env.DEV
 export function AppRouter() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Tab Routes (dengan BottomBar) */}
-        <Route element={<TabLayout />}>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/quran-doa" element={<QuranDoaPage />} />
-          <Route path="/dzikir" element={<DzikirPage />} />
-          <Route path="/tersimpan" element={<BookmarksPage />} />
-          <Route path="/profil" element={<ProfilePage />} />
-        </Route>
+      <ScrollToTop />
+      <ErrorBoundary>
+        <Suspense fallback={<PageSkeleton />}>
+          <Routes>
+          {/* Tab Routes (dengan BottomBar) */}
+          <Route element={<TabLayout />}>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/quran-doa" element={<QuranDoaPage />} />
+            <Route path="/dzikir" element={<DzikirPage />} />
+            <Route path="/tersimpan" element={<BookmarksPage />} />
+            <Route path="/profil" element={<ProfilePage />} />
+          </Route>
 
-        {/* Stack Routes (tanpa BottomBar) */}
-        <Route element={<StackLayout />}>
-          <Route path="/quran" element={<SurahListPage />} />
-          <Route path="/quran/:surahNumber" element={<SurahDetailPage />} />
-          <Route path="/doa" element={<DoaListPage />} />
-          <Route path="/doa/:doaId" element={<DoaDetailPage />} />
-          <Route path="/lokasi" element={<LocationPage />} />
-          <Route path="/lokasi/negara" element={<CountryPage />} />
-          <Route path="/jadwal-sholat" element={<PrayerTimesPage />} />
-          <Route path="/notifikasi" element={<NotificationsPage />} />
-          <Route path="/profil/sumber-data" element={<DataSourcesPage />} />
-          {import.meta.env.DEV && DevComponentsPage && (
-            <Route
-              path="/dev/components"
-              element={
-                <Suspense fallback={null}>
-                  <DevComponentsPage />
-                </Suspense>
-              }
-            />
-          )}
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+          {/* Stack Routes (tanpa BottomBar) */}
+          <Route element={<StackLayout />}>
+            <Route path="/quran" element={<SurahListPage />} />
+            <Route path="/quran/:surahNumber" element={<SurahDetailPage />} />
+            <Route path="/doa" element={<DoaListPage />} />
+            <Route path="/doa/:doaId" element={<DoaDetailPage />} />
+            <Route path="/lokasi" element={<LocationPage />} />
+            <Route path="/lokasi/negara" element={<CountryPage />} />
+            <Route path="/jadwal-sholat" element={<PrayerTimesPage />} />
+            <Route path="/notifikasi" element={<NotificationsPage />} />
+            <Route path="/profil/sumber-data" element={<DataSourcesPage />} />
+            {import.meta.env.DEV && DevComponentsPage && (
+              <Route
+                path="/dev/components"
+                element={<DevComponentsPage />}
+              />
+            )}
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
+      </Suspense>
+    </ErrorBoundary>
+  </BrowserRouter>
   )
 }
