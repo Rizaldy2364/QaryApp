@@ -19,7 +19,7 @@ export function TabLayout() {
       <main
         id="main-content"
         tabIndex={-1}
-        className="w-full flex-1 pb-28 lg:pb-8 focus:outline-none"
+        className="w-full flex-1 flex flex-col focus:outline-none"
       >
         <Outlet />
       </main>

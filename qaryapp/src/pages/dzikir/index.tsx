@@ -277,7 +277,7 @@ export default function DzikirPage() {
       <Header title="Dzikir" showBack={false} />
 
       {/* Tabs Pagi dan Petang */}
-      <div className="sticky top-11 z-20 bg-surface">
+      <div className="w-full">
         <Tabs
           tabs={[
             {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router'
-import { BookOpen, Heart, Pause, Play, ChevronRight } from 'lucide-react'
+import { BookOpen, Heart, CircleDot, Pause, Play, ChevronRight } from 'lucide-react'
 import { Header } from '../../components/layout/Header'
 import { Card } from '../../components/ui/Card'
 import { IconButton } from '../../components/ui/IconButton'
@@ -234,7 +234,7 @@ export function QuranDoaPage() {
   }
 
   return (
-    <div className="pb-16">
+    <div className="pb-24 lg:pb-8">
       <Header
         title="Al-Qur'an & Doa"
         subtitle="Baca, renungkan, dan amalkan"
@@ -383,39 +383,63 @@ export function QuranDoaPage() {
           </section>
         ) : null}
 
-        {/* Seksi Jelajahi */}
+        {/* Seksi Jelajahi: 3 Kotak Bersebelahan (Al-Qur'an, Doa, dan Dzikir) */}
         <section aria-label="Jelajahi Konten" className="mb-6">
           <h2 className="mb-3 text-[13px] leading-5 font-semibold text-text uppercase tracking-wider">
             Jelajahi
           </h2>
-          <div className="flex flex-col gap-3">
-            <Link to="/quran" className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl">
-              <Card interactive className="flex items-center gap-4 p-4">
-                <div className="flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-ink">
-                  <BookOpen className="h-6 w-6 text-primary" />
+          <div className="grid grid-cols-3 gap-3">
+            {/* 1. Al-Qur'an */}
+            <Link
+              to="/quran"
+              className="group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl"
+            >
+              <Card
+                interactive
+                className="flex flex-col items-center justify-center p-4 text-center rounded-2xl border-border bg-surface shadow-xs transition-transform group-hover:scale-[1.02]"
+              >
+                <div className="mb-2.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary">
+                  <BookOpen className="h-6 w-6 stroke-[2]" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base text-text">Al-Qur'an</h3>
-                  <p className="text-xs text-text-muted mt-0.5 truncate">
-                    114 surah · terjemahan · murotal per ayat
-                  </p>
-                </div>
-                <ChevronRight className="h-5 w-5 text-text-muted shrink-0" />
+                <span className="text-xs font-semibold text-text">
+                  Al-Qur'an
+                </span>
               </Card>
             </Link>
 
-            <Link to="/doa" className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl">
-              <Card interactive className="flex items-center gap-4 p-4">
-                <div className="flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-ink">
-                  <Heart className="h-6 w-6 text-primary" />
+            {/* 2. Doa Harian */}
+            <Link
+              to="/doa"
+              className="group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl"
+            >
+              <Card
+                interactive
+                className="flex flex-col items-center justify-center p-4 text-center rounded-2xl border-border bg-surface shadow-xs transition-transform group-hover:scale-[1.02]"
+              >
+                <div className="mb-2.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary">
+                  <Heart className="h-6 w-6 stroke-[2]" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base text-text">Doa Harian</h3>
-                  <p className="text-xs text-text-muted mt-0.5 truncate">
-                    Doa sehari-hari beserta artinya
-                  </p>
+                <span className="text-xs font-semibold text-text">
+                  Doa
+                </span>
+              </Card>
+            </Link>
+
+            {/* 3. Dzikir */}
+            <Link
+              to="/dzikir"
+              className="group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl"
+            >
+              <Card
+                interactive
+                className="flex flex-col items-center justify-center p-4 text-center rounded-2xl border-border bg-surface shadow-xs transition-transform group-hover:scale-[1.02]"
+              >
+                <div className="mb-2.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary">
+                  <CircleDot className="h-6 w-6 stroke-[2]" />
                 </div>
-                <ChevronRight className="h-5 w-5 text-text-muted shrink-0" />
+                <span className="text-xs font-semibold text-text">
+                  Dzikir
+                </span>
               </Card>
             </Link>
           </div>

@@ -25,6 +25,25 @@ export class ErrorBoundary extends Component<Props, State> {
     if (import.meta.env.DEV) {
       console.error('[ErrorBoundary caught an error]', error, errorInfo)
     }
+
+    // Tangani kegagalan lazy chunk setelah update versi baru
+    const isChunkError =
+      error.message?.includes('dynamically imported module') ||
+      error.message?.includes('Failed to fetch') ||
+      error.name === 'ChunkLoadError'
+
+    const RELOAD_KEY = 'qaryapp:chunk_reload'
+    if (isChunkError && typeof window !== 'undefined') {
+      try {
+        if (!sessionStorage.getItem(RELOAD_KEY)) {
+          sessionStorage.setItem(RELOAD_KEY, 'true')
+          window.location.reload()
+          return
+        }
+      } catch {
+        // Abaikan bila sessionStorage tidak tersedia
+      }
+    }
   }
 
   handleReload = () => {

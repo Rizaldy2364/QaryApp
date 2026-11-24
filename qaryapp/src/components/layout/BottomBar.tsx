@@ -1,5 +1,5 @@
 import { useLocation, Link } from 'react-router'
-import { Home, BookOpen, CircleDot, Bookmark, User } from 'lucide-react'
+import { Home, BookOpen, Compass, Bookmark, User } from 'lucide-react'
 
 interface NavItem {
   name: string
@@ -11,7 +11,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { name: 'Beranda', path: '/', icon: Home, exact: true },
   { name: 'Qur\'an & Doa', path: '/quran-doa', icon: BookOpen },
-  { name: 'Dzikir', path: '/dzikir', icon: CircleDot },
+  { name: 'Kiblat', path: '/kiblat', icon: Compass },
   { name: 'Tersimpan', path: '/tersimpan', icon: Bookmark },
   { name: 'Profil', path: '/profil', icon: User },
 ]

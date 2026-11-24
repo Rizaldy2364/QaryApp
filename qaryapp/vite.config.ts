@@ -17,10 +17,10 @@ export default defineConfig({
         enabled: false, // Tidak aktif di mode development
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,json}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json}'],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
-        navigateFallbackDenylist: [/^\/dev/],
+        navigateFallbackDenylist: [/^\/dev/, /^\/api/],
         // Pastikan API pihak ketiga dan audio TIDAK dicegat service worker
         runtimeCaching: [
           {
