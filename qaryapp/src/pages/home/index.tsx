@@ -290,7 +290,7 @@ export default function HomePage() {
       {/* ========================================================
           BAGIAN ATAS: HEADER HIJAU JADWAL SHOLAT
           ======================================================== */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-[#1F7A4D] via-[#176340] to-[#0B2E20] text-white pt-6 pb-14 shadow-none">
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#1F7A4D] via-[#176340] to-[#0B2E20] text-white pt-6 pb-16 shadow-none">
         {/* Background Siluet Masjid dan Ornamen */}
         <div className="absolute inset-0 pointer-events-none opacity-20">
           <svg
@@ -323,11 +323,15 @@ export default function HomePage() {
           </span>
         </div>
 
-        {/* Busur Lingkaran & Waktu Sholat Berikutnya */}
-        <div className="relative z-10 mt-6 flex flex-col items-center justify-center text-center px-4">
+        {/* Busur Lingkaran & Waktu Sholat Berikutnya (Tautan ke /jadwal-sholat) */}
+        <Link
+          to="/jadwal-sholat"
+          aria-label={`Buka jadwal sholat lengkap. Sholat berikutnya: ${nextPrayer?.label || ''} pukul ${nextPrayer?.timeStr || ''}`}
+          className="relative z-10 mt-6 flex flex-col items-center justify-center text-center px-4 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-2xl cursor-pointer"
+        >
           {/* Badge Sholat Berikutnya */}
           <div className="mb-2">
-            <span className="inline-block rounded-full bg-white/20 backdrop-blur-md px-3.5 py-1 text-xs font-medium text-white shadow-xs">
+            <span className="inline-block rounded-full bg-white/20 backdrop-blur-md px-3.5 py-1 text-xs font-medium text-white shadow-xs group-hover:bg-white/30 transition-colors">
               Mendatang: {nextPrayer?.label || 'Sholat'}
             </span>
           </div>
@@ -361,7 +365,7 @@ export default function HomePage() {
 
             {/* Jam Waktu Sholat Besar */}
             <div className="flex flex-col items-center justify-center pt-2">
-              <span className="font-mono text-5xl font-extrabold tracking-tight text-white drop-shadow-sm">
+              <span className="font-mono text-5xl font-extrabold tracking-tight text-white drop-shadow-sm group-hover:scale-105 transition-transform">
                 {nextPrayer?.timeStr || '--:--'}
               </span>
             </div>
@@ -371,35 +375,41 @@ export default function HomePage() {
           <p className="mt-1 text-xs text-[#F7F5EC]/90 font-medium">
             {countdownText}
           </p>
-        </div>
+        </Link>
 
-        {/* Timeline 5 Waktu Sholat Horisontal */}
-        <div className="relative z-10 mt-6 grid grid-cols-5 gap-1 pt-4 border-t border-white/15 text-center px-4">
-          {prayerTimeline.map((item) => {
-            const isHighlight = item.isNext
-            const IconComp = item.Icon
+        {/* Timeline 5 Waktu Sholat Horisontal (Dapat diklik ke /jadwal-sholat) */}
+        <Link
+          to="/jadwal-sholat"
+          aria-label="Lihat detail jadwal 5 waktu sholat"
+          className="relative z-10 mt-6 block px-4 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white rounded-2xl cursor-pointer"
+        >
+          <div className="grid grid-cols-5 gap-1 pt-4 border-t border-white/15 text-center">
+            {prayerTimeline.map((item) => {
+              const isHighlight = item.isNext
+              const IconComp = item.Icon
 
-            return (
-              <div
-                key={item.name}
-                className={`flex flex-col items-center py-1 rounded-xl transition-all ${
-                  isHighlight ? 'bg-white/15 font-semibold' : 'text-white/80'
-                }`}
-              >
-                <span className="text-[11px] mb-1">{item.label}</span>
-                <IconComp className={`h-4 w-4 mb-1 ${isHighlight ? 'text-[#E0B863]' : 'text-white/70'}`} />
-                <span className="font-mono text-xs">{item.cleanTime}</span>
-              </div>
-            )
-          })}
-        </div>
+              return (
+                <div
+                  key={item.name}
+                  className={`flex flex-col items-center py-1 rounded-xl transition-all ${
+                    isHighlight ? 'bg-white/15 font-semibold' : 'text-white/80 hover:text-white'
+                  }`}
+                >
+                  <span className="text-[11px] mb-1">{item.label}</span>
+                  <IconComp className={`h-4 w-4 mb-1 ${isHighlight ? 'text-[#E0B863]' : 'text-white/70'}`} />
+                  <span className="font-mono text-xs">{item.cleanTime}</span>
+                </div>
+              )
+            })}
+          </div>
+        </Link>
       </section>
 
       {/* ========================================================
           BAGIAN BAWAH: MENYATU DENGAN HEADER + SUDUT ATAS MELENGKUNG (rounded-t-[32px])
-          CARD "SUDAH SHOLAT" MENEMPEL SEPERTI LAKBAN DI ANTARA KEDUA CARD
+          CARD "SUDAH SHOLAT" MENEMPEL SEPERTI LAKBAN DENGAN CELAH NYAMAN DARI JADWAL SHOLAT
           ======================================================== */}
-      <div className="relative -mt-8 rounded-t-[32px] bg-bg px-4 pt-12 space-y-5 transition-colors shadow-none">
+      <div className="relative -mt-6 rounded-t-[32px] bg-bg px-4 pt-14 space-y-5 transition-colors shadow-none">
         {/* CARD LAKBAN: "Sudah sholat {targetPrayerLabel}?" */}
         <div className="absolute -top-7 left-4 right-4 z-20">
           <div
