@@ -1,0 +1,21 @@
+{
+  "verses": [
+    { "surah": 2, "ayah": 286 },
+    { "surah": 13, "ayah": 28 },
+    { "surah": 2, "ayah": 152 },
+    { "surah": 94, "ayah": 5 },
+    { "surah": 3, "ayah": 139 }
+  ],
+  "doas": [
+    "doa-4",
+    "doa-32",
+    "doa-5",
+    "doa-10",
+    "doa-33"
+  ],
+  "wordsOfWisdom": [
+    "doa-30",
+    "doa-1",
+    "doa-21"
+  ]
+}

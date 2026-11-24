@@ -14,6 +14,10 @@
   --color-text: #16241C;
   --color-text-muted: #5A6B60;
   --color-danger: #B3402E;
+  --color-art-green: #1F7A4D;
+  --color-art-green-dark: #0B2E20;
+  --color-art-gold: #E0B863;
+  --color-art-cream: #F7F5EC;
   --font-ui: "Plus Jakarta Sans", sans-serif;
   --font-arab: "Amiri", serif;
 }
@@ -30,6 +34,13 @@
   --color-text: #EAF1EC;
   --color-text-muted: #9DB0A4;
   --color-danger: #E8806F;
+}
+
+:root {
+  --art-green: #1F7A4D;
+  --art-green-dark: #0B2E20;
+  --art-gold: #E0B863;
+  --art-cream: #F7F5EC;
 }
 
 body {

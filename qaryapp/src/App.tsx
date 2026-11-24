@@ -1,6 +1,11 @@
+import { AppProviders } from './app/providers'
+import { AppRouter } from './app/router'
+
 function App() {
   return (
-    <div>QaryApp</div>
+    <AppProviders>
+      <AppRouter />
+    </AppProviders>
   )
 }
 

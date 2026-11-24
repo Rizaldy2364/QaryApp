@@ -3,8 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#F7F5EC" />
+    <meta name="theme-color" content="#F7F5EC" id="theme-color-meta" />
+    <link rel="icon" type="image/svg+xml" href="/qaryapp-icon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>QaryApp</title>
+    <script>
+      // Anti-flicker: kunci penyimpanan 'qaryapp:settings' (harus sama dengan SETTINGS_STORAGE_KEY di src/lib/storage)
+      (function() {
+        try {
+          var raw = localStorage.getItem('qaryapp:settings');
+          var settings = raw ? JSON.parse(raw) : null;
+          var theme = settings && settings.theme ? settings.theme : 'system';
+          var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var root = document.documentElement;
+          if (isDark) {
+            root.classList.add('dark');
+            root.style.colorScheme = 'dark';
+          } else {
+            root.classList.remove('dark');
+            root.style.colorScheme = 'light';
+          }
+          var metaThemeColor = document.getElementById('theme-color-meta');
+          if (metaThemeColor) {
+            metaThemeColor.setAttribute('content', isDark ? '#0E1A14' : '#F7F5EC');
+          }
+        } catch (e) {
+          // Abaikan jika localStorage tidak dapat diakses
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
