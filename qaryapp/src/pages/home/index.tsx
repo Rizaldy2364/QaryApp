@@ -22,12 +22,15 @@ import {
   unmarkPrayer,
 } from '../../lib/storage'
 import { getSurahList } from '../../features/quran/api'
+import { scheduleQuranIdlePrefetch } from '../../features/quran/prefetch'
 import {
   FIVE_PRAYERS,
   cleanPrayerTime,
   parseTimeInZone,
 } from '../../features/prayer-times/lib/prayer-calculations'
 import { formatIndonesianHijriDate } from '../../features/prayer-times/lib/hijri-dates'
+import { PrayerCountdown } from './PrayerCountdown'
+import { usePageTitle } from '../../lib/usePageTitle'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Skeleton } from '../../components/feedback/Skeleton'
@@ -37,14 +40,16 @@ import { OfflineBanner } from '../../components/feedback/OfflineBanner'
 import type { PrayerName } from '../../types'
 
 export default function HomePage() {
+  usePageTitle('Beranda')
   const navigate = useNavigate()
   const { settings, setLocation } = useSettings()
   const location = settings.location
   const lastRead = getLastRead()
   const [lastReadSurahName, setLastReadSurahName] = useState<string | null>(null)
 
-  // Muat nama surah terakhir dibaca
+  // Muat nama surah terakhir dibaca dan jadwalkan prefetch idle
   useEffect(() => {
+    scheduleQuranIdlePrefetch()
     if (!lastRead) return
     let isMounted = true
     getSurahList()
@@ -83,15 +88,6 @@ export default function HomePage() {
       navigate('/lokasi?geo=denied')
     }
   }
-
-  // Waktu real-time sekarang
-  const [currentTime, setCurrentTime] = useState<Date>(() => new Date())
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [])
 
   // Tanggal hari ini
   const todayDateStr = useMemo(() => {
@@ -177,17 +173,6 @@ export default function HomePage() {
     }
   }
 
-  // Hitung countdown detik akurat ke sholat berikutnya
-  const countdownText = useMemo(() => {
-    if (!nextPrayer) return ''
-    const diff = nextPrayer.timeObj.getTime() - currentTime.getTime()
-    if (diff <= 0) return 'Telah masuk waktu sholat'
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000)
-    return `${hours} jam ${minutes} menit ${seconds} detik lagi`
-  }, [nextPrayer, currentTime])
-
   // Data 5 waktu sholat dengan ikon
   const prayerTimeline = useMemo(() => {
     if (!todayData) return []
@@ -271,6 +256,7 @@ export default function HomePage() {
 
   return (
     <div className="w-full overflow-x-hidden pb-16">
+      <h1 className="sr-only">Beranda QaryApp</h1>
       {/* Banner offline */}
       {(status === 'offline' || isStale) && (
         <div className="px-5 pt-4">
@@ -364,7 +350,7 @@ export default function HomePage() {
             </svg>
 
             {/* Jam Waktu Sholat Besar */}
-            <div className="flex flex-col items-center justify-center pt-2">
+            <div className="flex flex-col items-center justify-center pt-7">
               <span className="font-mono text-5xl font-extrabold tracking-tight text-white drop-shadow-sm group-hover:scale-105 transition-transform">
                 {nextPrayer?.timeStr || '--:--'}
               </span>
@@ -372,9 +358,10 @@ export default function HomePage() {
           </div>
 
           {/* Teks Hitung Mundur */}
-          <p className="mt-1 text-xs text-[#F7F5EC]/90 font-medium">
-            {countdownText}
-          </p>
+          <PrayerCountdown
+            targetDate={nextPrayer?.timeObj}
+            className="-mt-5 text-xs text-[#F7F5EC]/90 font-medium"
+          />
         </Link>
 
         {/* Timeline 5 Waktu Sholat Horisontal (Dapat diklik ke /jadwal-sholat) */}
@@ -422,7 +409,7 @@ export default function HomePage() {
                 handleToggleTargetPrayer()
               }
             }}
-            className="flex items-center justify-between rounded-2xl bg-[#0B2E20]/80 backdrop-blur-md p-4 border border-white/25 shadow-lg transition-all hover:bg-[#0B2E20]/90 active:scale-[0.99] cursor-pointer select-none text-white"
+            className="flex items-center justify-between rounded-4xl bg-[#0B2E20]/80 backdrop-blur-md p-4 border border-white/25 shadow-lg transition-all hover:bg-[#0B2E20]/90 active:scale-[0.99] cursor-pointer select-none text-white"
           >
             <div>
               <h2 className="text-sm font-semibold text-white">

@@ -4,8 +4,10 @@ import { Check } from 'lucide-react'
 import { Header } from '../../components/layout/Header'
 import { SearchField } from '../../components/ui/SearchField'
 import { getSortedCountries } from '../../data/countries'
+import { usePageTitle } from '../../lib/usePageTitle'
 
 export default function CountryPage() {
+  usePageTitle('Pilih Negara')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const selectedCode = (searchParams.get('negara') || 'ID').toUpperCase()

@@ -28,7 +28,7 @@ export function BottomBar() {
   const ActiveIcon = activeItem ? activeItem.icon : null
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 w-full pointer-events-none">
+    <div className="fixed bottom-0 left-0 right-0 z-40 w-full pointer-events-none lg:hidden">
       <div className="mx-auto max-w-180 relative pointer-events-auto">
         <nav
           aria-label="Menu utama"

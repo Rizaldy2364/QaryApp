@@ -10,9 +10,11 @@ import { ErrorState } from '../../components/feedback/ErrorState'
 import { OfflineBanner } from '../../components/feedback/OfflineBanner'
 import { getSurahList } from '../../features/quran/api'
 import { matchSurah } from '../../features/quran/lib/search'
+import { usePageTitle } from '../../lib/usePageTitle'
 import type { Surah } from '../../features/quran/types'
 
 export default function SurahListPage() {
+  usePageTitle('Daftar Surah')
   const [surahs, setSurahs] = useState<Surah[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)

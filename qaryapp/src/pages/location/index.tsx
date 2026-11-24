@@ -21,9 +21,11 @@ import { useGeolocation } from '../../features/location/useGeolocation'
 import { searchCities, type GeocodingResult } from '../../features/location/api'
 import { getRecentLocations, addRecentLocation } from '../../lib/storage'
 import { getCountryName } from '../../data/countries'
+import { usePageTitle } from '../../lib/usePageTitle'
 import type { UserLocation } from '../../types'
 
 export default function LocationPage() {
+  usePageTitle('Pilih Lokasi')
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { settings, setLocation } = useSettings()

@@ -1,0 +1,110 @@
+{
+  "/": {
+    "runs": [
+      {
+        "code": 0,
+        "performance": 99,
+        "lcpMs": 803,
+        "tbtMs": 105,
+        "cls": 0.003,
+        "lcpElement": "Tidak terdeteksi"
+      },
+      {
+        "code": 0,
+        "performance": 99,
+        "lcpMs": 763,
+        "tbtMs": 111,
+        "cls": 0.003,
+        "lcpElement": "Tidak terdeteksi"
+      },
+      {
+        "code": 0,
+        "performance": 98,
+        "lcpMs": 763,
+        "tbtMs": 162,
+        "cls": 0.003,
+        "lcpElement": "Tidak terdeteksi"
+      }
+    ],
+    "median": {
+      "code": 0,
+      "performance": 99,
+      "lcpMs": 803,
+      "tbtMs": 105,
+      "cls": 0.003,
+      "lcpElement": "Tidak terdeteksi"
+    }
+  },
+  "/quran/1": {
+    "runs": [
+      {
+        "code": 0,
+        "performance": 95,
+        "lcpMs": 2838,
+        "tbtMs": 99,
+        "cls": 0.003,
+        "lcpElement": "Tidak terdeteksi"
+      },
+      {
+        "code": 0,
+        "performance": 95,
+        "lcpMs": 2929,
+        "tbtMs": 58,
+        "cls": 0.003,
+        "lcpElement": "Tidak terdeteksi"
+      },
+      {
+        "code": 0,
+        "performance": 94,
+        "lcpMs": 3022,
+        "tbtMs": 54,
+        "cls": 0.003,
+        "lcpElement": "Tidak terdeteksi"
+      }
+    ],
+    "median": {
+      "code": 0,
+      "performance": 95,
+      "lcpMs": 2838,
+      "tbtMs": 99,
+      "cls": 0.003,
+      "lcpElement": "Tidak terdeteksi"
+    }
+  },
+  "/dzikir": {
+    "runs": [
+      {
+        "code": 0,
+        "performance": 94,
+        "lcpMs": 2987,
+        "tbtMs": 97,
+        "cls": 0,
+        "lcpElement": "Tidak terdeteksi"
+      },
+      {
+        "code": 0,
+        "performance": 93,
+        "lcpMs": 2805,
+        "tbtMs": 179,
+        "cls": 0.003,
+        "lcpElement": "Tidak terdeteksi"
+      },
+      {
+        "code": 0,
+        "performance": 94,
+        "lcpMs": 2999,
+        "tbtMs": 109,
+        "cls": 0,
+        "lcpElement": "Tidak terdeteksi"
+      }
+    ],
+    "median": {
+      "code": 0,
+      "performance": 94,
+      "lcpMs": 2987,
+      "tbtMs": 97,
+      "cls": 0,
+      "lcpElement": "Tidak terdeteksi"
+    }
+  }
+}

@@ -1,7 +1,9 @@
 import { Link } from 'react-router'
 import { Header } from '../../components/layout/Header'
+import { usePageTitle } from '../../lib/usePageTitle'
 
 export default function NotFoundPage() {
+  usePageTitle('Halaman Tidak Ditemukan')
   return (
     <div>
       <Header title="QaryApp" showBack={false} />

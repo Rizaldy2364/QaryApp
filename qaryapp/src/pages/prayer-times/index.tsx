@@ -18,9 +18,11 @@ import {
   markPrayer,
   unmarkPrayer,
 } from '../../lib/storage'
+import { usePageTitle } from '../../lib/usePageTitle'
 import type { PrayerName } from '../../types'
 
 export function PrayerTimesPage() {
+  usePageTitle('Jadwal Sholat')
   const { settings } = useSettings()
   const prayerTimesResult = usePrayerTimes(settings.location)
   const { todayData, nextPrayer, status, timezone, refetch } = prayerTimesResult
