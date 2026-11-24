@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "data:import": "node scripts/import-doa-data.mjs",
+    "data:check": "node scripts/check-data.mjs"
   },
   "dependencies": {
     "@fontsource/amiri": "^5.3.0",
