@@ -113,14 +113,13 @@ export function useQiblaCompass() {
             : 0
         rawHeading = (iosEvent.webkitCompassHeading + screenAngle + 360) % 360
       } else if (event.alpha !== null) {
-        // Hanya gunakan deviceorientation standar jika absolut atau belum ada sumber absolut
-        if (isAbsoluteSource || event.absolute || !('ondeviceorientationabsolute' in window)) {
-          rawHeading = computeTiltCompensatedHeading(
-            event.alpha,
-            event.beta ?? 0,
-            event.gamma ?? 0,
-          )
-        }
+        // Gunakan sumber absolut jika tersedia; jika perangkat hanya mengirim deviceorientation standar,
+        // tetap proses agar kompas selalu merespon pergerakan HP.
+        rawHeading = computeTiltCompensatedHeading(
+          event.alpha,
+          event.beta ?? 0,
+          event.gamma ?? 0,
+        )
       }
 
       if (rawHeading === null) return
