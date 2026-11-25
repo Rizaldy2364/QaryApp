@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
-import { MapPin, ChevronDown, RefreshCw } from 'lucide-react'
+import { MapPin, ChevronDown } from 'lucide-react'
 import { useSettings } from '../../features/settings/useSettings'
 import { usePageTitle } from '../../lib/usePageTitle'
 import { useQiblaCompass } from '../../features/qibla/useQiblaCompass'
@@ -9,8 +9,6 @@ import {
   calculateDistanceToKaaba,
 } from '../../features/qibla/lib/qibla'
 import { Header } from '../../components/layout/Header'
-import { Card } from '../../components/ui/Card'
-import { Button } from '../../components/ui/Button'
 import { cn } from '../../lib/utils'
 
 export default function QiblaPage() {
@@ -35,30 +33,19 @@ export default function QiblaPage() {
     [userLat, userLng],
   )
 
-  const {
-    heading,
-    verticalTilt,
-    horizontalTilt,
-    hasSensor,
-    permissionState,
-    requestSensorPermission,
-  } = useQiblaCompass()
-
-  // Slider simulasi jika sensor tidak terdeteksi (misal di PC / browser desktop)
-  const [manualOffset, setManualOffset] = useState(0)
-  const effectiveHeading = hasSensor ? heading : manualOffset
+  const { heading, verticalTilt, horizontalTilt } = useQiblaCompass()
 
   // Selisih antara arah hadap perangkat dan arah kiblat
   // Ketika difference mendekati 0 atau 360, ponsel tepat menghadap kiblat
-  const angleDiff = Math.abs((effectiveHeading - qiblaAngle + 360) % 360)
+  const angleDiff = Math.abs((heading - qiblaAngle + 360) % 360)
   const isAligned = angleDiff <= 3 || angleDiff >= 357
 
   // Rotasi dial kompas kontinu agar tidak berputar balik 358° saat melewati 0°/360°
   const [rotState, setRotState] = useState({ heading: 0, cumulative: 0 })
-  if (rotState.heading !== effectiveHeading) {
-    const delta = ((effectiveHeading - rotState.heading + 540) % 360) - 180
+  if (rotState.heading !== heading) {
+    const delta = ((heading - rotState.heading + 540) % 360) - 180
     setRotState({
-      heading: effectiveHeading,
+      heading,
       cumulative: rotState.cumulative + delta,
     })
   }
@@ -71,7 +58,7 @@ export default function QiblaPage() {
 
       {/* Konten Utama */}
       <main className="mx-auto w-full max-w-md px-4 pt-4 flex flex-col items-center">
-        {/* Pemilih Lokasi di Tengah Atas (Persis sesuai foto) */}
+        {/* Pemilih Lokasi di Tengah Atas */}
         <div className="mb-6">
           <Link
             to="/lokasi"
@@ -83,23 +70,6 @@ export default function QiblaPage() {
             <ChevronDown size={14} className="text-text-muted dark:text-white/60 shrink-0" />
           </Link>
         </div>
-        {/* Izin sensor iOS jika belum diberikan */}
-        {permissionState === 'prompt' && (
-          <div className="w-full mb-4">
-            <Card className="bg-surface dark:bg-white/10 border-border dark:border-white/15 p-3.5 text-center rounded-2xl shadow-sm">
-              <p className="text-xs text-text dark:text-white/90 mb-2">
-                Aktifkan sensor orientasi ponsel untuk kompas otomatis real-time.
-              </p>
-              <Button
-                variant="primary"
-                onClick={requestSensorPermission}
-                className="w-full py-2 text-xs"
-              >
-                Aktifkan Sensor Kompas
-              </Button>
-            </Card>
-          </div>
-        )}
 
         {/* DIAL KOMPAS KIBLAT */}
         <div className="relative my-4 flex items-center justify-center">
@@ -186,24 +156,28 @@ export default function QiblaPage() {
                 </text>
               </svg>
 
-              {/* IKON KA'BAH PADA BUSUR DERAJAT KIBLAT */}
+              {/* GAMBAR KA'BAH PADA BUSUR DERAJAT KIBLAT */}
               <div
                 className="absolute inset-0 flex items-start justify-center pointer-events-none"
                 style={{ transform: `rotate(${qiblaAngle}deg)` }}
               >
                 <div
-                  className="mt-3.5 flex flex-col items-center"
+                  className="mt-2.5 flex flex-col items-center"
                   style={{ transform: `rotate(-${qiblaAngle}deg)` }}
                 >
-                  {/* Ikon Miniatur Ka'bah Emas */}
                   <div
                     title={`Arah Ka'bah: ${qiblaAngle}°`}
-                    className="flex h-6 w-6 items-center justify-center rounded-md bg-gold text-white shadow-lg shadow-gold/30 border border-white/60"
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-surface dark:bg-[#0E2019] shadow-md ring-2 ring-gold"
                   >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4 fill-white">
-                      <rect x="3" y="5" width="18" height="14" rx="2" />
-                      <line x1="3" y1="10" x2="21" y2="10" stroke="#FFF" strokeWidth="1.5" />
-                      <circle cx="12" cy="14" r="1.5" fill="#FFF" />
+                    {/* Ilustrasi Ka'bah jelas: kubus hitam dengan kiswah & pintu emas */}
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+                      <path d="M12 2L4 5.5v13L12 22l8-3.5v-13L12 2z" fill="#1A1D1B" />
+                      <path d="M12 2L4 5.5l8 3.5 8-3.5L12 2z" fill="#2D3330" />
+                      <path d="M12 9v13l8-3.5v-13L12 9z" fill="#111312" />
+                      {/* Sabuk Kiswah Emas */}
+                      <path d="M4 8.2l8 3.5 8-3.5v2l-8 3.5-8-3.5v-2z" fill="#E0B863" />
+                      {/* Pintu Ka'bah Emas */}
+                      <path d="M14.5 14.5l2.2-1v4.2l-2.2 1v-4.2z" fill="#E0B863" />
                     </svg>
                   </div>
                 </div>
@@ -220,7 +194,7 @@ export default function QiblaPage() {
 
                 {/* Heading Terukur Derajat */}
                 <div className="text-2xl sm:text-3xl font-bold tracking-tight text-text dark:text-white my-0.5">
-                  {effectiveHeading}°
+                  {heading}°
                 </div>
 
                 <div className="text-[10px] text-text-muted dark:text-white/50">
@@ -239,7 +213,7 @@ export default function QiblaPage() {
                 ✓ Posisi ponsel Anda sudah tepat menghadap Kiblat!
               </span>
             ) : (
-              'Putar ponsel hingga ikon Ka\'bah berada di puncak kompas'
+              "Putar ponsel hingga gambar Ka'bah berada di puncak kompas"
             )}
           </p>
 
@@ -252,7 +226,7 @@ export default function QiblaPage() {
           </p>
         </div>
 
-        {/* Indikator Kemiringan (Vertical & Horizontal persis sesuai foto) */}
+        {/* Indikator Kemiringan (Vertical & Horizontal) */}
         <div className="w-full flex items-center justify-between px-6 mt-6 mb-4">
           <div className="flex flex-col items-start">
             <span className="text-xs font-normal text-text-muted dark:text-white/60 tracking-wide mb-1">
@@ -272,39 +246,6 @@ export default function QiblaPage() {
             </span>
           </div>
         </div>
-
-        {/* Petunjuk / Kontrol Manual untuk Komputer Desktop tanpa Sensor Magnetik */}
-        {!hasSensor && (
-          <div className="w-full mt-2">
-            <Card className="bg-surface dark:bg-white/5 border-border dark:border-white/10 p-3.5 rounded-2xl text-xs text-text dark:text-white/80 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-text dark:text-white">Simulasi Putar (Mode Desktop)</span>
-                <button
-                  type="button"
-                  onClick={() => setManualOffset(Math.round(qiblaAngle))}
-                  className="inline-flex items-center gap-1 text-gold hover:underline cursor-pointer"
-                >
-                  <RefreshCw size={11} />
-                  <span>Arahkan ke Kiblat</span>
-                </button>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="360"
-                value={manualOffset}
-                onChange={(e) => setManualOffset(Number(e.target.value))}
-                aria-label="Simulasi rotasi kompas derajat"
-                className="w-full accent-primary cursor-pointer"
-              />
-              <div className="flex justify-between text-[10px] text-text-muted dark:text-white/40 mt-1">
-                <span>0° (Utara)</span>
-                <span>{manualOffset}°</span>
-                <span>360°</span>
-              </div>
-            </Card>
-          </div>
-        )}
       </main>
     </div>
   )
