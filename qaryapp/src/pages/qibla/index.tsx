@@ -10,7 +10,6 @@ import {
 } from '../../features/qibla/lib/qibla'
 import { Header } from '../../components/layout/Header'
 import { Card } from '../../components/ui/Card'
-import { Button } from '../../components/ui/Button'
 import { cn } from '../../lib/utils'
 
 export default function QiblaPage() {
@@ -40,8 +39,6 @@ export default function QiblaPage() {
     verticalTilt,
     horizontalTilt,
     hasSensor,
-    permissionState,
-    requestSensorPermission,
   } = useQiblaCompass()
 
   // Slider simulasi jika sensor tidak terdeteksi (misal di PC / browser desktop)
@@ -83,24 +80,6 @@ export default function QiblaPage() {
             <ChevronDown size={14} className="text-text-muted dark:text-white/60 shrink-0" />
           </Link>
         </div>
-        {/* Izin sensor iOS jika belum diberikan */}
-        {permissionState === 'prompt' && (
-          <div className="w-full mb-4">
-            <Card className="bg-surface dark:bg-white/10 border-border dark:border-white/15 p-3.5 text-center rounded-2xl shadow-sm">
-              <p className="text-xs text-text dark:text-white/90 mb-2">
-                Aktifkan sensor orientasi ponsel untuk kompas otomatis real-time.
-              </p>
-              <Button
-                variant="primary"
-                onClick={requestSensorPermission}
-                className="w-full py-2 text-xs"
-              >
-                Aktifkan Sensor Kompas
-              </Button>
-            </Card>
-          </div>
-        )}
-
         {/* DIAL KOMPAS KIBLAT */}
         <div className="relative my-4 flex items-center justify-center">
           {/* Cincin Luar Kompas */}
@@ -273,9 +252,9 @@ export default function QiblaPage() {
           </div>
         </div>
 
-        {/* Petunjuk / Kontrol Manual untuk Komputer Desktop tanpa Sensor Magnetik */}
+        {/* Petunjuk / Kontrol Manual hanya untuk Komputer Desktop (>= 1024px) tanpa Sensor Magnetik */}
         {!hasSensor && (
-          <div className="w-full mt-2">
+          <div className="hidden lg:block w-full mt-2">
             <Card className="bg-surface dark:bg-white/5 border-border dark:border-white/10 p-3.5 rounded-2xl text-xs text-text dark:text-white/80 shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-medium text-text dark:text-white">Simulasi Putar (Mode Desktop)</span>
