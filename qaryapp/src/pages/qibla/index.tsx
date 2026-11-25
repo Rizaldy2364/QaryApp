@@ -53,11 +53,19 @@ export default function QiblaPage() {
   const angleDiff = Math.abs((effectiveHeading - qiblaAngle + 360) % 360)
   const isAligned = angleDiff <= 3 || angleDiff >= 357
 
-  // Rotasi dial kompas (memutar ke kiri sebesar heading)
-  const compassRotation = -effectiveHeading
+  // Rotasi dial kompas kontinu agar tidak berputar balik 358° saat melewati 0°/360°
+  const [rotState, setRotState] = useState({ heading: 0, cumulative: 0 })
+  if (rotState.heading !== effectiveHeading) {
+    const delta = ((effectiveHeading - rotState.heading + 540) % 360) - 180
+    setRotState({
+      heading: effectiveHeading,
+      cumulative: rotState.cumulative + delta,
+    })
+  }
+  const compassRotation = -rotState.cumulative
 
   return (
-    <div className="w-full flex-1 flex flex-col justify-between min-h-[calc(100vh-4rem)] lg:min-h-screen bg-bg dark:bg-gradient-to-b dark:from-[#112920] dark:via-[#0E2019] dark:to-[#0E1A14] text-text transition-colors pb-24 lg:pb-8">
+    <div className="w-full flex-1 flex flex-col justify-between overflow-x-hidden min-h-[calc(100vh-4rem)] lg:min-h-screen bg-bg dark:bg-gradient-to-b dark:from-[#112920] dark:via-[#0E2019] dark:to-[#0E1A14] text-text transition-colors pb-24 lg:pb-8">
       {/* Header Halaman di tengah tanpa icon panah, menyatu dengan background */}
       <Header title="Kiblat" showBack={false} className="bg-transparent" />
 
@@ -95,16 +103,15 @@ export default function QiblaPage() {
 
         {/* DIAL KOMPAS KIBLAT */}
         <div className="relative my-4 flex items-center justify-center">
-          {/* Efek Lingkaran Cahaya saat Tepat Mengarah ke Kiblat */}
+          {/* Cincin Luar Kompas */}
           <div
             className={cn(
-              'absolute inset-0 rounded-full blur-2xl transition-all duration-300 pointer-events-none',
-              isAligned ? 'bg-primary/25 scale-105' : 'bg-primary/5',
+              'relative flex h-72 w-72 sm:h-80 sm:w-80 items-center justify-center rounded-full bg-gradient-to-b from-[#EDF5F0] via-[#F8FAF8] to-[#FFFFFF] dark:bg-gradient-to-b dark:from-[#1C3B2E] dark:via-[#122A21] dark:to-[#0A1A14] border-4 transition-all duration-300',
+              isAligned
+                ? 'border-primary/60 shadow-[0_0_28px_rgba(31,122,77,0.28)] dark:shadow-[0_0_32px_rgba(76,195,138,0.3)]'
+                : 'border-border dark:border-white/10 shadow-xl dark:shadow-2xl',
             )}
-          />
-
-          {/* Cincin Luar Kompas */}
-          <div className="relative flex h-72 w-72 sm:h-80 sm:w-80 items-center justify-center rounded-full bg-gradient-to-b from-[#EDF5F0] via-[#F8FAF8] to-[#FFFFFF] dark:bg-gradient-to-b dark:from-[#1C3B2E] dark:via-[#122A21] dark:to-[#0A1A14] shadow-xl dark:shadow-2xl border-4 border-border dark:border-white/10 transition-colors">
+          >
             {/* Garis Pointer Tetap di Atas (Penunjuk Arah Depan Ponsel) */}
             <div className="absolute top-1.5 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center pointer-events-none">
               <div
@@ -117,7 +124,7 @@ export default function QiblaPage() {
 
             {/* Piringan Dial Berputar Mengikuti Heading */}
             <div
-              className="relative flex h-full w-full items-center justify-center rounded-full transition-transform duration-100 ease-out"
+              className="relative flex h-full w-full items-center justify-center rounded-full will-change-transform"
               style={{ transform: `rotate(${compassRotation}deg)` }}
             >
               {/* Garis-garis Derajat Mata Angin */}
@@ -191,7 +198,7 @@ export default function QiblaPage() {
                   {/* Ikon Miniatur Ka'bah Emas */}
                   <div
                     title={`Arah Ka'bah: ${qiblaAngle}°`}
-                    className="flex h-6 w-6 items-center justify-center rounded-md bg-gold text-white shadow-lg shadow-gold/30 border border-white/60 animate-pulse"
+                    className="flex h-6 w-6 items-center justify-center rounded-md bg-gold text-white shadow-lg shadow-gold/30 border border-white/60"
                   >
                     <svg viewBox="0 0 24 24" className="h-4 w-4 fill-white">
                       <rect x="3" y="5" width="18" height="14" rx="2" />

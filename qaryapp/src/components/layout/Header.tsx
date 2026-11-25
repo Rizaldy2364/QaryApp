@@ -52,11 +52,11 @@ export function Header({
   return (
     <header
       className={cn(
-        'w-full transition-colors',
+        'w-full pt-2.5 pb-1 transition-colors',
         className,
       )}
     >
-      <div className="mx-auto flex h-11 max-w-180 items-center justify-between px-4">
+      <div className="mx-auto flex min-h-11 max-w-180 items-center justify-between px-4">
         <div className="flex h-11 w-11 items-center justify-start">
           {showBack ? (
             <button
