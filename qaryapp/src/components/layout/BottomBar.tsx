@@ -28,7 +28,7 @@ export function BottomBar() {
   const ActiveIcon = activeItem ? activeItem.icon : null
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 w-full pointer-events-none lg:hidden">
+    <div className="fixed bottom-0 left-0 right-0 z-40 w-full pointer-events-none lg:hidden transform-gpu backface-hidden">
       <div className="mx-auto max-w-180 relative pointer-events-auto">
         <nav
           aria-label="Menu utama"
@@ -36,34 +36,34 @@ export function BottomBar() {
         >
           {activeIndex !== -1 && (
             <>
-              {/* Lekukan melengkung di belakang lingkaran (setengah lebar 38px, kedalaman 29px) */}
+              {/* Lekukan melengkung di belakang lingkaran (lebar 84px, kedalaman 28px) */}
               <svg
-                width="76"
+                width="84"
                 height="30"
-                viewBox="0 0 76 30"
+                viewBox="0 0 84 30"
                 fill="none"
                 aria-hidden="true"
                 className="absolute -top-px pointer-events-none transition-all duration-200 motion-reduce:transition-none"
                 style={{
-                  left: `calc(${(activeIndex + 0.5) * 20}% - 38px)`,
+                  left: `calc(${(activeIndex + 0.5) * 20}% - 42px)`,
                 }}
               >
                 <path
-                  d="M 0,0 C 18,0 18,29 38,29 C 58,29 58,0 76,0 L 76,-1 L 0,-1 Z"
+                  d="M 0,0 C 20,0 20,28 42,28 C 64,28 64,0 84,0 L 84,-1 L 0,-1 Z"
                   fill="var(--color-bg)"
                 />
                 <path
-                  d="M 0,0 C 18,0 18,29 38,29 C 58,29 58,0 76,0"
+                  d="M 0,0 C 20,0 20,28 42,28 C 64,28 64,0 84,0"
                   stroke="var(--color-border)"
                   strokeWidth="1"
                   fill="none"
                 />
               </svg>
 
-              {/* Lingkaran 48px menonjol ke atas dengan titik tengah di garis atas bar */}
+              {/* Lingkaran 48px melayang lebih tinggi agar berjarak rapi dari lekukan BottomBar */}
               <div
                 aria-hidden="true"
-                className="absolute top-0 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-primary text-primary-fg flex items-center justify-center shadow-sm pointer-events-none transition-all duration-200 motion-reduce:transition-none"
+                className="absolute -top-1.5 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-primary text-primary-fg flex items-center justify-center shadow-sm pointer-events-none transition-all duration-200 motion-reduce:transition-none"
                 style={{
                   left: `calc(${(activeIndex + 0.5) * 20}%)`,
                 }}
