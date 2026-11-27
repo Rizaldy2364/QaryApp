@@ -14,9 +14,12 @@ export interface UserLocation {
 
 export type ReminderMode = 'notification' | 'notification-adzan'
 
+export type AdzanPrayerMap = Record<PrayerName, boolean>
+
 export interface ReminderSettings {
   enabled: boolean
   mode: ReminderMode
+  adzanPrayers: AdzanPrayerMap
 }
 
 export interface AppSettings {
@@ -29,9 +32,18 @@ export interface AppSettings {
   reminders: ReminderSettings
 }
 
+export const DEFAULT_ADZAN_PRAYERS: AdzanPrayerMap = {
+  subuh: true,
+  dzuhur: true,
+  ashar: true,
+  maghrib: true,
+  isya: true,
+}
+
 export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
   enabled: false,
   mode: 'notification',
+  adzanPrayers: DEFAULT_ADZAN_PRAYERS,
 }
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
