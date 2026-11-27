@@ -58,3 +58,12 @@ export function getCountryName(code: string): string {
     return code
   }
 }
+
+export function findCountryCodeByName(countryName?: string | null): string | null {
+  const normalized = countryName?.trim().toLowerCase()
+  if (!normalized) return null
+  const found = getSortedCountries().find(
+    (item) => item.name.toLowerCase() === normalized || item.code.toLowerCase() === normalized,
+  )
+  return found ? found.code : null
+}

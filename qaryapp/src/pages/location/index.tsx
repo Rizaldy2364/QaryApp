@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useSearchParams, Link } from 'react-router'
+import { useSearchParams, Link } from 'react-router'
 import {
+  CheckCircle2,
   ChevronRight,
   Compass,
   Globe,
@@ -20,22 +21,56 @@ import { useSettings } from '../../features/settings/useSettings'
 import { useGeolocation } from '../../features/location/useGeolocation'
 import { searchCities, type GeocodingResult } from '../../features/location/api'
 import { getRecentLocations, addRecentLocation } from '../../lib/storage'
-import { getCountryName } from '../../data/countries'
+import { findCountryCodeByName, getCountryName } from '../../data/countries'
 import { usePageTitle } from '../../lib/usePageTitle'
 import type { UserLocation } from '../../types'
 
+const SEARCH_COUNTRY_STORAGE_KEY = 'qaryapp:search-country'
+const COUNTRY_TOAST_SESSION_KEY = 'qaryapp:country-toast'
+
+function getSavedSearchCountryCode(fallbackCountryName?: string | null): string {
+  try {
+    const stored = window.localStorage.getItem(SEARCH_COUNTRY_STORAGE_KEY)
+    if (stored && stored.trim().length === 2) {
+      return stored.trim().toUpperCase()
+    }
+  } catch {
+    // Abaikan jika localStorage dibatasi
+  }
+  return findCountryCodeByName(fallbackCountryName) ?? 'ID'
+}
+
 export default function LocationPage() {
   usePageTitle('Pilih Lokasi')
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { settings, setLocation } = useSettings()
   const { requestLocation, status: geoStatus, errorMessage: geoError } = useGeolocation()
 
-  const currentSavedCountryCode = 'ID'
   const countryCode = (
-    searchParams.get('negara') || currentSavedCountryCode
+    searchParams.get('negara') || getSavedSearchCountryCode(settings.location?.country)
   ).toUpperCase()
   const countryName = getCountryName(countryCode)
+
+  const [toastMessage, setToastMessage] = useState<string | null>(() => {
+    try {
+      const pending = window.sessionStorage.getItem(COUNTRY_TOAST_SESSION_KEY)
+      if (pending) {
+        window.sessionStorage.removeItem(COUNTRY_TOAST_SESSION_KEY)
+        return pending
+      }
+    } catch {
+      // Abaikan jika sessionStorage dibatasi
+    }
+    return null
+  })
+
+  useEffect(() => {
+    if (!toastMessage) return
+    const timer = window.setTimeout(() => {
+      setToastMessage(null)
+    }, 3500)
+    return () => window.clearTimeout(timer)
+  }, [toastMessage])
 
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<GeocodingResult[]>([])
@@ -94,16 +129,18 @@ export default function LocationPage() {
     setLocation(loc)
     addRecentLocation(loc)
     setRecentLocations(getRecentLocations())
+    setQuery('')
 
-    if (
-      window.history.state &&
-      typeof window.history.state.idx === 'number' &&
-      window.history.state.idx > 0
-    ) {
-      navigate(-1)
-    } else {
-      navigate('/')
+    const matchedCode = findCountryCodeByName(loc.country)
+    if (matchedCode) {
+      try {
+        window.localStorage.setItem(SEARCH_COUNTRY_STORAGE_KEY, matchedCode)
+      } catch {
+        // Abaikan jika penyimpanan dibatasi
+      }
     }
+
+    setToastMessage(`Kota ${loc.city} berhasil dipilih`)
   }
 
   const handleUseGps = async () => {
@@ -308,6 +345,20 @@ export default function LocationPage() {
           Lokasi hanya dipakai untuk menghitung jadwal sholat.
         </p>
       </div>
+
+      {/* Bubble Pesan Konfirmasi Pilih Negara / Kota */}
+      {toastMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 w-max max-w-[calc(100vw-2rem)]"
+        >
+          <div className="flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-xs font-medium text-primary-fg shadow-lg">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span className="truncate">{toastMessage}</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

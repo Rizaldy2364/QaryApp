@@ -3,8 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { Check } from 'lucide-react'
 import { Header } from '../../components/layout/Header'
 import { SearchField } from '../../components/ui/SearchField'
-import { getSortedCountries } from '../../data/countries'
+import { getCountryName, getSortedCountries } from '../../data/countries'
 import { usePageTitle } from '../../lib/usePageTitle'
+
+const SEARCH_COUNTRY_STORAGE_KEY = 'qaryapp:search-country'
+const COUNTRY_TOAST_SESSION_KEY = 'qaryapp:country-toast'
 
 export default function CountryPage() {
   usePageTitle('Pilih Negara')
@@ -25,7 +28,26 @@ export default function CountryPage() {
   }, [allCountries, searchQuery])
 
   const handleSelect = (code: string) => {
-    navigate(`/lokasi?negara=${code}`)
+    const chosenName = getCountryName(code)
+    try {
+      window.localStorage.setItem(SEARCH_COUNTRY_STORAGE_KEY, code)
+      window.sessionStorage.setItem(
+        COUNTRY_TOAST_SESSION_KEY,
+        `Negara ${chosenName} berhasil dipilih`,
+      )
+    } catch {
+      // Abaikan jika penyimpanan dibatasi
+    }
+
+    if (
+      window.history.state &&
+      typeof window.history.state.idx === 'number' &&
+      window.history.state.idx > 0
+    ) {
+      navigate(-1)
+    } else {
+      navigate(`/lokasi?negara=${code}`, { replace: true })
+    }
   }
 
   return (
