@@ -11,8 +11,11 @@ import {
   Sunset,
   Moon,
   ChevronRight,
+  Bell,
+  Calendar,
 } from 'lucide-react'
 import { useSettings } from '../../features/settings/useSettings'
+import { useNotifications } from '../../features/notifications/useNotifications'
 import { usePrayerTimes } from '../../features/prayer-times/usePrayerTimes'
 import { useGeolocation } from '../../features/location/useGeolocation'
 import {
@@ -28,7 +31,6 @@ import {
   cleanPrayerTime,
   parseTimeInZone,
 } from '../../features/prayer-times/lib/prayer-calculations'
-import { formatIndonesianHijriDate } from '../../features/prayer-times/lib/hijri-dates'
 import { PrayerCountdown } from './PrayerCountdown'
 import { usePageTitle } from '../../lib/usePageTitle'
 import { Card } from '../../components/ui/Card'
@@ -44,6 +46,7 @@ export default function HomePage() {
   const navigate = useNavigate()
   const { settings, setLocation } = useSettings()
   const location = settings.location
+  const { unreadCount } = useNotifications()
   const lastRead = getLastRead()
   const [lastReadSurahName, setLastReadSurahName] = useState<string | null>(null)
 
@@ -98,13 +101,16 @@ export default function HomePage() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   }, [todayData])
 
-  // Tanggal Hijriah
-  const hijriStr = useMemo(() => {
-    if (todayData?.date.hijri) {
-      return formatIndonesianHijriDate(todayData.date.hijri)
-    }
-    return ''
-  }, [todayData])
+  // Tanggal Masehi
+  const gregorianStr = useMemo(() => {
+    const dateObj = todayDateStr ? new Date(`${todayDateStr}T12:00:00`) : new Date()
+    return new Intl.DateTimeFormat('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(dateObj)
+  }, [todayDateStr])
 
   // Status sholat yang telah dicatat hari ini
   const [markedPrayers, setMarkedPrayers] = useState<Set<PrayerName>>(() => new Set())
@@ -295,18 +301,25 @@ export default function HomePage() {
           </svg>
         </div>
 
-        {/* Baris Atas: Lokasi dan Tanggal Hijriah (diberi celah aman px-5 / pl-5 pr-5) */}
+        {/* Baris Atas: Tanggal Masehi dan Lonceng Notifikasi */}
         <div className="relative z-10 flex items-center justify-between text-xs px-5">
+          <div className="inline-flex items-center gap-1.5 font-medium text-[#F7F5EC] py-1 min-w-0">
+            <Calendar className="h-3.5 w-3.5 text-[#E0B863] shrink-0" />
+            <span className="truncate">{gregorianStr}</span>
+          </div>
           <Link
-            to="/lokasi"
-            className="inline-flex items-center gap-1.5 font-medium text-[#F7F5EC] hover:text-[#E0B863] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md py-1"
+            to="/notifikasi"
+            aria-label={unreadCount > 0 ? `Notifikasi, ${unreadCount} belum dibaca` : 'Notifikasi'}
+            className="relative flex h-10 w-10 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           >
-            <MapPin className="h-3.5 w-3.5 text-[#E0B863] shrink-0" />
-            <span className="truncate max-w-[180px]">{location.city}, {location.country}</span>
+            <Bell className="h-5 w-5" />
+            {unreadCount > 0 && (
+              <span
+                aria-hidden="true"
+                className="absolute top-2 right-2 h-2 w-2 rounded-full bg-danger ring-[1.5px] ring-white"
+              />
+            )}
           </Link>
-          <span className="font-medium text-[#F7F5EC]/90 shrink-0 pl-2">
-            {hijriStr}
-          </span>
         </div>
 
         {/* Busur Lingkaran & Waktu Sholat Berikutnya (Tautan ke /jadwal-sholat) */}

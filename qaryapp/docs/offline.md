@@ -47,8 +47,10 @@ Service Worker dikonfigurasi menggunakan `vite-plugin-pwa` dengan generator Work
    - Di dalam berkas kompilasi `dist/sw.js`, Workbox menyertakan `self.skipWaiting()` dan `clientsClaim()` secara langsung pada inisialisasi modul.
    - **Hasil Audit**: Pembaruan otomatis **benar-benar aktif** saat Service Worker baru terdeteksi, meskipun pendaftaran awal di `src/main.tsx` menggunakan API native `navigator.serviceWorker.register('/sw.js')`.
 3. **Pencegatan Rute `/dev` dan `/api`**:
-   - Rute `/dev` memiliki aturan denylist: `new s.NavigationRoute(..., { denylist: [/^\/dev/] })`. Rute dev tidak dicegat oleh `navigateFallback`.
-   - Rute `/api`: Untuk navigasi dokumen HTML, `/api` belum terdaftar di denylist navigasi karena aplikasi tidak memiliki backend server sendiri di MVP. Namun untuk panggilan data `fetch`, API eksternal Aladhan, EQuran.id, dan Open-Meteo telah dikecualikan secara eksplisit via `NetworkOnly`.
+   - Rute `/dev` dan `/api` terdaftar pada `navigateFallbackDenylist: [/^\/dev/, /^\/api/]`. Permintaan ke backend `/api/*` tidak dicegat oleh `navigateFallback`.
+4. **Sinkronisasi Akun Saat Offline (IndexedDB v2)**:
+   - Untuk pengguna yang sudah masuk, perubahan lokal (bookmark, doa favorit, posisi baca) disimpan dengan penanda `updatedAt` dan `deleted` (soft delete) serta dimasukkan ke store `sync_queue` saat offline, lalu didorong otomatis saat kembali online.
+   - Status sesi terakhir dipertahankan saat offline (pengguna tidak dianggap keluar dan data lokal tidak dihapus).
 
 ---
 

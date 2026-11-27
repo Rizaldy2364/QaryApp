@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   addDoaFavorite,
   getDoaFavorites,
+  LOCAL_DATA_SYNCED_EVENT,
   removeDoaFavorite,
 } from '../../lib/storage'
 import type { DoaFavorite } from '../../types'
@@ -11,6 +12,16 @@ export function useDoaFavorites() {
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(() => new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [feedbackMessage, setFeedbackMessage] = useState<string>('')
+
+  const refreshFavorites = useCallback(async () => {
+    try {
+      const list = await getDoaFavorites()
+      setFavorites(list)
+      setFavoriteIds(new Set(list.map((f) => String(f.doaId))))
+    } catch {
+      // Abaikan error pembacaan
+    }
+  }, [])
 
   useEffect(() => {
     let ignore = false
@@ -25,10 +36,17 @@ export function useDoaFavorites() {
       .catch(() => {
         if (!ignore) setIsLoading(false)
       })
+
+    const handleSynced = () => {
+      void refreshFavorites()
+    }
+    window.addEventListener(LOCAL_DATA_SYNCED_EVENT, handleSynced)
+
     return () => {
       ignore = true
+      window.removeEventListener(LOCAL_DATA_SYNCED_EVENT, handleSynced)
     }
-  }, [])
+  }, [refreshFavorites])
 
   const isFavorite = useCallback(
     (doaId: string | number): boolean => {

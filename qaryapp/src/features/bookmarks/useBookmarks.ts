@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   addAyahBookmark,
   getAyahBookmarks,
+  LOCAL_DATA_SYNCED_EVENT,
   removeAyahBookmark,
 } from '../../lib/storage'
 import type { AyahBookmark } from '../../types'
@@ -10,6 +11,16 @@ export function useBookmarks() {
   const [bookmarks, setBookmarks] = useState<AyahBookmark[]>([])
   const [bookmarkIds, setBookmarkIds] = useState<Set<string>>(() => new Set())
   const [isLoading, setIsLoading] = useState(true)
+
+  const refreshBookmarks = useCallback(async () => {
+    try {
+      const list = await getAyahBookmarks()
+      setBookmarks(list)
+      setBookmarkIds(new Set(list.map((b) => b.id)))
+    } catch {
+      // Abaikan error pembacaan
+    }
+  }, [])
 
   useEffect(() => {
     let ignore = false
@@ -26,20 +37,17 @@ export function useBookmarks() {
           setIsLoading(false)
         }
       })
+
+    const handleSynced = () => {
+      void refreshBookmarks()
+    }
+    window.addEventListener(LOCAL_DATA_SYNCED_EVENT, handleSynced)
+
     return () => {
       ignore = true
+      window.removeEventListener(LOCAL_DATA_SYNCED_EVENT, handleSynced)
     }
-  }, [])
-
-  const refreshBookmarks = useCallback(async () => {
-    try {
-      const list = await getAyahBookmarks()
-      setBookmarks(list)
-      setBookmarkIds(new Set(list.map((b) => b.id)))
-    } catch {
-      // Abaikan error pembacaan
-    }
-  }, [])
+  }, [refreshBookmarks])
 
   const isBookmarked = useCallback(
     (surahNumber: number, ayahNumber: number): boolean => {

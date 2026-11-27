@@ -16,6 +16,7 @@ function getFallbackRoute(pathname: string): string {
   if (pathname === '/quran' || pathname === '/doa') return '/quran-doa'
   if (pathname.startsWith('/doa/')) return '/doa'
   if (pathname === '/profil/sumber-data') return '/profil'
+  if (pathname === '/masuk' || pathname === '/daftar') return '/profil'
   if (pathname === '/lokasi/negara') return '/lokasi'
   if (
     pathname === '/lokasi' ||
