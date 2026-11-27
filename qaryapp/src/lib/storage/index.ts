@@ -238,6 +238,10 @@ export function migrateAppSettings(parsed: Partial<AppSettings> | null | undefin
       typeof parsed.showTransliteration === 'boolean'
         ? parsed.showTransliteration
         : DEFAULT_APP_SETTINGS.showTransliteration,
+    showTajwid:
+      typeof parsed.showTajwid === 'boolean'
+        ? parsed.showTajwid
+        : DEFAULT_APP_SETTINGS.showTajwid,
     location: parsed.location ?? DEFAULT_APP_SETTINGS.location,
     reminders: {
       enabled:

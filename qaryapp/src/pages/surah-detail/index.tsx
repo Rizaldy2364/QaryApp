@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -9,6 +10,7 @@ import {
   ArrowLeft,
   Bookmark,
   ChevronDown,
+  HelpCircle,
   Pause,
   Play,
   Settings2,
@@ -28,6 +30,11 @@ import {
   formatRevelationPlace,
   getSurahJuzLabel,
 } from '../../features/quran/juz'
+import {
+  parseTajwidSegments,
+  TAJWID_RULE_MAP,
+} from '../../features/quran/tajwid'
+import { TajwidLegendModal } from '../../features/quran/TajwidLegendModal'
 import { useAyahPlayer } from '../../features/quran/useAyahPlayer'
 import { useBookmarks } from '../../features/bookmarks/useBookmarks'
 import { useSettings } from '../../features/settings/useSettings'
@@ -47,6 +54,7 @@ interface AyahRowProps {
   arabSize: ArabSize
   showTranslation: boolean
   showTransliteration: boolean
+  showTajwid: boolean
   isPlaying: boolean
   isBookmarked: boolean
   onTogglePlay: (ayah: Ayah) => void
@@ -58,11 +66,16 @@ const AyahRow = React.memo(function AyahRow({
   arabSize,
   showTranslation,
   showTransliteration,
+  showTajwid,
   isPlaying,
   isBookmarked,
   onTogglePlay,
   onToggleBookmark,
 }: AyahRowProps) {
+  const tajwidSegments = useMemo(
+    () => (showTajwid ? parseTajwidSegments(ayah.arabicText) : null),
+    [showTajwid, ayah.arabicText],
+  )
   // Ukuran teks Arab sesuai preferensi pengguna
   const arabSizeClass = {
     small: 'text-2xl leading-[2.2]',
@@ -134,7 +147,17 @@ const AyahRow = React.memo(function AyahRow({
           arabSizeClass,
         )}
       >
-        {ayah.arabicText}
+        {tajwidSegments
+          ? tajwidSegments.map((seg, idx) =>
+              seg.rule ? (
+                <span key={idx} className={TAJWID_RULE_MAP[seg.rule].textClass}>
+                  {seg.text}
+                </span>
+              ) : (
+                <React.Fragment key={idx}>{seg.text}</React.Fragment>
+              ),
+            )
+          : ayah.arabicText}
       </div>
 
       {/* Transliterasi Latin */}
@@ -164,9 +187,12 @@ interface ReadingSettingsSheetProps {
   arabSize: ArabSize
   showTranslation: boolean
   showTransliteration: boolean
+  showTajwid: boolean
   onUpdateArabSize: (size: ArabSize) => void
   onUpdateTranslation: (val: boolean) => void
   onUpdateTransliteration: (val: boolean) => void
+  onUpdateTajwid: (val: boolean) => void
+  onOpenTajwidHelp: () => void
 }
 
 function ReadingSettingsSheet({
@@ -175,9 +201,12 @@ function ReadingSettingsSheet({
   arabSize,
   showTranslation,
   showTransliteration,
+  showTajwid,
   onUpdateArabSize,
   onUpdateTranslation,
   onUpdateTransliteration,
+  onUpdateTajwid,
+  onOpenTajwidHelp,
 }: ReadingSettingsSheetProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -271,6 +300,33 @@ function ReadingSettingsSheet({
               label="Tampilkan transliterasi huruf Latin"
             />
           </div>
+
+          {/* Toggle Tajwid Berwarna + Ikon Panduan Warna */}
+          <div className="flex items-center justify-between border-t border-border pt-4">
+            <div className="pr-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm font-medium text-text">
+                  Tajwid Berwarna
+                </span>
+                <button
+                  type="button"
+                  onClick={onOpenTajwidHelp}
+                  aria-label="Panduan warna tajwid"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-text-muted hover:bg-primary-soft/50 hover:text-primary-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
+                >
+                  <HelpCircle className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="text-xs text-text-muted">
+                Tandai hukum bacaan dengan warna pada teks ayat
+              </div>
+            </div>
+            <Switch
+              checked={showTajwid}
+              onChange={onUpdateTajwid}
+              label="Aktifkan tajwid berwarna pada teks ayat"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -305,6 +361,7 @@ export default function SurahDetailPage() {
   )
   const [isStaleCache, setIsStaleCache] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isTajwidHelpOpen, setIsTajwidHelpOpen] = useState(false)
 
   const handleAyahChange = useCallback((ayahNumber: number) => {
     const el = document.getElementById(`ayah-${ayahNumber}`)
@@ -517,7 +574,8 @@ export default function SurahDetailPage() {
   const handleSelectSurah = (nextSurahNumber: number) => {
     if (nextSurahNumber !== parsedSurahNumber) {
       setIsLoading(true)
-      navigate(`/quran/${nextSurahNumber}`)
+      navigate(`/quran/${nextSurahNumber}`, { replace: true })
+      window.scrollTo({ top: 0 })
     }
   }
 
@@ -721,6 +779,7 @@ export default function SurahDetailPage() {
                   arabSize={settings.arabSize}
                   showTranslation={settings.showTranslation}
                   showTransliteration={settings.showTransliteration}
+                  showTajwid={settings.showTajwid}
                   isPlaying={player.playingAyahNumber === ayah.number}
                   isBookmarked={isBookmarked(parsedSurahNumber, ayah.number)}
                   onTogglePlay={handleTogglePlay}
@@ -739,11 +798,20 @@ export default function SurahDetailPage() {
         arabSize={settings.arabSize}
         showTranslation={settings.showTranslation}
         showTransliteration={settings.showTransliteration}
+        showTajwid={settings.showTajwid}
         onUpdateArabSize={(size) => updateSettings({ arabSize: size })}
         onUpdateTranslation={(val) => updateSettings({ showTranslation: val })}
         onUpdateTransliteration={(val) =>
           updateSettings({ showTransliteration: val })
         }
+        onUpdateTajwid={(val) => updateSettings({ showTajwid: val })}
+        onOpenTajwidHelp={() => setIsTajwidHelpOpen(true)}
+      />
+
+      {/* Modal Panduan Warna Tajwid */}
+      <TajwidLegendModal
+        isOpen={isTajwidHelpOpen}
+        onClose={() => setIsTajwidHelpOpen(false)}
       />
 
       {/* Fixed Bottom Audio Player Bar (Tinggi 84 px) */}
