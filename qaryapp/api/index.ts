@@ -1,8 +1,11 @@
+import { existsSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { FastifyInstance } from '../server/node_modules/fastify/fastify.js'
 import type { AppConfig } from '../server/src/config.js'
+
+declare const __dirname: string | undefined
 
 interface VercelRequest extends IncomingMessage {
   body?: unknown
@@ -26,8 +29,46 @@ const nativeImport = new Function(
 
 let appPromise: Promise<FastifyInstance> | null = null
 
+function resolveServerDistDir(): string {
+  const baseDirs: string[] = []
+
+  try {
+    if (typeof import.meta?.url === 'string' && import.meta.url.length > 0) {
+      baseDirs.push(resolve(dirname(fileURLToPath(import.meta.url)), '..', 'server', 'dist'))
+    }
+  } catch {
+    // Abaikan jika import.meta.url tidak tersedia di runtime CJS
+  }
+
+  if (typeof __dirname === 'string' && __dirname.length > 0) {
+    baseDirs.push(resolve(__dirname, '..', 'server', 'dist'))
+  }
+
+  baseDirs.push(
+    resolve(process.cwd(), 'server', 'dist'),
+    resolve(process.cwd(), 'qaryapp', 'server', 'dist'),
+    '/var/task/qaryapp/server/dist',
+    '/var/task/server/dist',
+  )
+
+  const uniqueCandidates = [...new Set(baseDirs)]
+  const found = uniqueCandidates.find((dir) => existsSync(resolve(dir, 'app.js')))
+
+  if (!found) {
+    console.error('server/dist/app.js tidak ditemukan. Kandidat yang diperiksa:', {
+      candidates: uniqueCandidates,
+      cwd: process.cwd(),
+    })
+    throw new Error(
+      `Cannot find server/dist/app.js. Checked: ${uniqueCandidates.join(', ')}`,
+    )
+  }
+
+  return found
+}
+
 async function loadServerModules(): Promise<ServerModules> {
-  const serverDistDir = resolve(process.cwd(), 'server', 'dist')
+  const serverDistDir = resolveServerDistDir()
   const [appMod, configMod, dbMod] = await Promise.all([
     nativeImport<{ buildApp: ServerModules['buildApp'] }>(
       pathToFileURL(resolve(serverDistDir, 'app.js')).href,
