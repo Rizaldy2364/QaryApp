@@ -1,18 +1,56 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type { FastifyInstance } from '../server/node_modules/fastify/fastify.js'
-import { buildApp } from '../server/src/app.js'
-import { loadConfig } from '../server/src/config.js'
-import { createDb } from '../server/src/db/index.js'
+import type { AppConfig } from '../server/src/config.js'
 
 interface VercelRequest extends IncomingMessage {
   body?: unknown
 }
 
+interface ServerModules {
+  buildApp: (opts: {
+    config: AppConfig
+    db: unknown
+    logger?: boolean
+  }) => Promise<FastifyInstance>
+  loadConfig: (env?: Record<string, string | undefined>) => AppConfig
+  createDb: (databaseUrl: string) => { db: unknown }
+}
+
+// Gunakan native ESM import() agar runtime CommonJS Vercel tidak mengubahnya menjadi require()
+const nativeImport = new Function(
+  'specifier',
+  'return import(specifier)',
+) as <T>(specifier: string) => Promise<T>
+
 let appPromise: Promise<FastifyInstance> | null = null
+
+async function loadServerModules(): Promise<ServerModules> {
+  const serverDistDir = resolve(process.cwd(), 'server', 'dist')
+  const [appMod, configMod, dbMod] = await Promise.all([
+    nativeImport<{ buildApp: ServerModules['buildApp'] }>(
+      pathToFileURL(resolve(serverDistDir, 'app.js')).href,
+    ),
+    nativeImport<{ loadConfig: ServerModules['loadConfig'] }>(
+      pathToFileURL(resolve(serverDistDir, 'config.js')).href,
+    ),
+    nativeImport<{ createDb: ServerModules['createDb'] }>(
+      pathToFileURL(resolve(serverDistDir, 'db', 'index.js')).href,
+    ),
+  ])
+
+  return {
+    buildApp: appMod.buildApp,
+    loadConfig: configMod.loadConfig,
+    createDb: dbMod.createDb,
+  }
+}
 
 async function getApp(): Promise<FastifyInstance> {
   if (!appPromise) {
     appPromise = (async () => {
+      const { buildApp, loadConfig, createDb } = await loadServerModules()
       const config = loadConfig({
         ...process.env,
         NODE_ENV: process.env.NODE_ENV || 'production',
@@ -38,7 +76,9 @@ async function readRawBody(req: IncomingMessage): Promise<Buffer | undefined> {
   return chunks.length > 0 ? Buffer.concat(chunks) : undefined
 }
 
-function resolvePayload(req: VercelRequest): Promise<string | Buffer | Record<string, unknown> | undefined> {
+function resolvePayload(
+  req: VercelRequest,
+): Promise<string | Buffer | Record<string, unknown> | undefined> {
   const method = (req.method || 'GET').toUpperCase()
   if (method === 'GET' || method === 'HEAD') {
     return Promise.resolve(undefined)
@@ -50,7 +90,9 @@ function resolvePayload(req: VercelRequest): Promise<string | Buffer | Record<st
       Buffer.isBuffer(req.body) ||
       typeof req.body === 'object'
     ) {
-      return Promise.resolve(req.body as string | Buffer | Record<string, unknown>)
+      return Promise.resolve(
+        req.body as string | Buffer | Record<string, unknown>,
+      )
     }
     return Promise.resolve(String(req.body))
   }
@@ -65,7 +107,9 @@ export default async function handler(
   try {
     const app = await getApp()
     const rawUrl = req.url || '/api'
-    const url = rawUrl.startsWith('/api') ? rawUrl : `/api${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`
+    const url = rawUrl.startsWith('/api')
+      ? rawUrl
+      : `/api${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`
     const payload = await resolvePayload(req)
 
     const response = await app.inject({
