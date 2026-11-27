@@ -62,8 +62,11 @@ export async function buildApp({
       csrfHeader: request.headers['x-qaryapp'],
       originHeader: request.headers.origin,
       hostHeader: request.headers.host,
+      forwardedHostHeader: request.headers['x-forwarded-host'],
+      forwardedProtoHeader: request.headers['x-forwarded-proto'],
       protocol: request.protocol,
       allowedOrigins: config.allowedOrigins,
+      isDev: config.nodeEnv === 'development',
     })
 
     if (!result.ok) {

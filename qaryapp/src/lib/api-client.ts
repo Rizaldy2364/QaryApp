@@ -55,7 +55,7 @@ export interface ApiRequestOptions extends Omit<RequestInit, 'body' | 'credentia
   timeoutMs?: number
 }
 
-const DEFAULT_TIMEOUT_MS = 10_000
+const DEFAULT_TIMEOUT_MS = 20_000
 
 export async function apiFetch<T>(
   path: string,
