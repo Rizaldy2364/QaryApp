@@ -24,6 +24,7 @@ export interface AppSettings {
   arabSize: ArabSize
   showTranslation: boolean
   showTransliteration: boolean
+  showTajwid: boolean
   location: UserLocation | null
   reminders: ReminderSettings
 }
@@ -38,6 +39,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   arabSize: 'medium',
   showTranslation: true,
   showTransliteration: false,
+  showTajwid: false,
   location: null,
   reminders: DEFAULT_REMINDER_SETTINGS,
 }

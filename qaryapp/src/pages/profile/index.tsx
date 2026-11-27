@@ -7,6 +7,7 @@ import {
   Cloud,
   CloudOff,
   FileText,
+  HelpCircle,
   LogOut,
   MapPin,
   RefreshCw,
@@ -18,7 +19,9 @@ import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
+import { Switch } from '../../components/ui/Switch'
 import { TextField } from '../../components/ui/TextField'
+import { TajwidLegendModal } from '../../features/quran/TajwidLegendModal'
 import { useSettings } from '../../features/settings/useSettings'
 import { useTheme } from '../../app/theme-context'
 import { getSurahDetail } from '../../features/quran/api'
@@ -114,6 +117,7 @@ export function ProfilePage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [deletePassword, setDeletePassword] = useState('')
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [isTajwidHelpOpen, setIsTajwidHelpOpen] = useState(false)
 
   useEffect(() => {
     let ignore = false
@@ -437,7 +441,34 @@ export function ProfilePage() {
               )}
             </div>
 
-            {/* 3. Pengaturan Lokasi */}
+            {/* 3. Pengaturan Tajwid Berwarna */}
+            <div className="flex items-center justify-between p-4 gap-3">
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium text-text">
+                    Tajwid berwarna
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsTajwidHelpOpen(true)}
+                    aria-label="Panduan warna tajwid"
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-full text-text-muted hover:bg-primary-soft/50 hover:text-primary-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                  </button>
+                </div>
+                <span className="text-xs text-text-muted">
+                  Tandai hukum bacaan dengan warna pada teks ayat
+                </span>
+              </div>
+              <Switch
+                checked={settings.showTajwid}
+                onChange={(val) => updateSettings({ showTajwid: val })}
+                label="Aktifkan tajwid berwarna pada teks ayat"
+              />
+            </div>
+
+            {/* 4. Pengaturan Lokasi */}
             <Link
               to="/lokasi"
               className="flex min-h-[56px] items-center justify-between p-4 transition-colors hover:bg-primary-soft/20 active:bg-primary-soft/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -641,6 +672,10 @@ export function ProfilePage() {
           </Card>
         </div>
       )}
+      <TajwidLegendModal
+        isOpen={isTajwidHelpOpen}
+        onClose={() => setIsTajwidHelpOpen(false)}
+      />
     </div>
   )
 }
