@@ -60,17 +60,19 @@ export function validateCsrfRequest(input: CsrfCheckInput): CsrfCheckResult {
       input.allowedOrigins.includes(normalizedOrigin) ||
       (Boolean(input.isDev) && isLocalDevOrigin(normalizedOrigin))
 
+    const forwardedProto = firstHeaderValue(input.forwardedProtoHeader)?.split(',')[0]?.trim()
+    const effectiveProto = forwardedProto || input.protocol
+
     let isSameHost = false
     if (input.hostHeader) {
-      const expectedSameOrigin = `${input.protocol}://${input.hostHeader}`
-      isSameHost = normalizedOrigin === expectedSameOrigin
+      isSameHost =
+        normalizedOrigin === `${input.protocol}://${input.hostHeader}` ||
+        normalizedOrigin === `${effectiveProto}://${input.hostHeader}`
     }
 
     const forwardedHost = firstHeaderValue(input.forwardedHostHeader)?.split(',')[0]?.trim()
-    const forwardedProto =
-      firstHeaderValue(input.forwardedProtoHeader)?.split(',')[0]?.trim() || input.protocol
     if (!isSameHost && forwardedHost) {
-      isSameHost = normalizedOrigin === `${forwardedProto}://${forwardedHost}`
+      isSameHost = normalizedOrigin === `${effectiveProto}://${forwardedHost}`
     }
 
     if (!isAllowed && !isSameHost) {
