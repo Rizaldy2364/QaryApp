@@ -73,4 +73,31 @@ describe('validateCsrfRequest', () => {
       }),
     ).toEqual({ ok: true })
   })
+
+  it('mengizinkan origin LAN saat development dan header x-forwarded-host dari proxy', () => {
+    expect(
+      validateCsrfRequest({
+        method: 'POST',
+        csrfHeader: '1',
+        originHeader: 'http://192.168.1.12:5173',
+        hostHeader: '127.0.0.1:3000',
+        protocol: 'http',
+        allowedOrigins: ['http://localhost:5173'],
+        isDev: true,
+      }),
+    ).toEqual({ ok: true })
+
+    expect(
+      validateCsrfRequest({
+        method: 'DELETE',
+        csrfHeader: '1',
+        originHeader: 'https://demo.trycloudflare.com',
+        hostHeader: '127.0.0.1:3000',
+        forwardedHostHeader: 'demo.trycloudflare.com',
+        forwardedProtoHeader: 'https',
+        protocol: 'http',
+        allowedOrigins: [],
+      }),
+    ).toEqual({ ok: true })
+  })
 })
