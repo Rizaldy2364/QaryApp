@@ -17,6 +17,13 @@ describe('migrateAppSettings', () => {
     expect(migrated.reminders).toEqual({
       enabled: false,
       mode: 'notification',
+      adzanPrayers: {
+        subuh: true,
+        dzuhur: true,
+        ashar: true,
+        maghrib: true,
+        isya: true,
+      },
     })
   })
 
@@ -25,11 +32,25 @@ describe('migrateAppSettings', () => {
       reminders: {
         enabled: true,
         mode: 'notification-adzan',
+        adzanPrayers: {
+          subuh: true,
+          dzuhur: false,
+          ashar: true,
+          maghrib: true,
+          isya: false,
+        },
       },
     })
     expect(migrated.reminders).toEqual({
       enabled: true,
       mode: 'notification-adzan',
+      adzanPrayers: {
+        subuh: true,
+        dzuhur: false,
+        ashar: true,
+        maghrib: true,
+        isya: false,
+      },
     })
   })
 })

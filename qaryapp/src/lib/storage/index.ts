@@ -1,5 +1,6 @@
 import { openDB, type IDBPDatabase, type IDBPTransaction } from 'idb'
 import {
+  DEFAULT_ADZAN_PRAYERS,
   DEFAULT_APP_SETTINGS,
   DEFAULT_REMINDER_SETTINGS,
   type AppSettings,
@@ -226,6 +227,7 @@ export function migrateAppSettings(parsed: Partial<AppSettings> | null | undefin
   const rawReminders = parsed.reminders
   const mode =
     rawReminders?.mode === 'notification-adzan' ? 'notification-adzan' : 'notification'
+  const rawAdzan = rawReminders?.adzanPrayers
 
   return {
     theme: parsed.theme ?? DEFAULT_APP_SETTINGS.theme,
@@ -249,6 +251,13 @@ export function migrateAppSettings(parsed: Partial<AppSettings> | null | undefin
           ? rawReminders.enabled
           : DEFAULT_REMINDER_SETTINGS.enabled,
       mode,
+      adzanPrayers: {
+        subuh: typeof rawAdzan?.subuh === 'boolean' ? rawAdzan.subuh : DEFAULT_ADZAN_PRAYERS.subuh,
+        dzuhur: typeof rawAdzan?.dzuhur === 'boolean' ? rawAdzan.dzuhur : DEFAULT_ADZAN_PRAYERS.dzuhur,
+        ashar: typeof rawAdzan?.ashar === 'boolean' ? rawAdzan.ashar : DEFAULT_ADZAN_PRAYERS.ashar,
+        maghrib: typeof rawAdzan?.maghrib === 'boolean' ? rawAdzan.maghrib : DEFAULT_ADZAN_PRAYERS.maghrib,
+        isya: typeof rawAdzan?.isya === 'boolean' ? rawAdzan.isya : DEFAULT_ADZAN_PRAYERS.isya,
+      },
     },
   }
 }

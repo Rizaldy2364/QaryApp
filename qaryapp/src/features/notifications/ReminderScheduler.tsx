@@ -4,7 +4,10 @@ import { Volume2, VolumeX } from 'lucide-react'
 import { upsertNotificationEntry } from '../../lib/storage'
 import { usePrayerTimes } from '../prayer-times/usePrayerTimes'
 import { useSettings } from '../settings/useSettings'
-import { ADZAN_AUDIO_PATH, checkAdzanAvailable } from './adzan'
+import {
+  startAdzanSound,
+  type AdzanPlaybackHandle,
+} from './adzan'
 import {
   findMissedPrayersSince,
   findNextPrayerTrigger,
@@ -59,53 +62,35 @@ export function ReminderScheduler() {
   const [isPlayingAdzan, setIsPlayingAdzan] = useState(false)
   const [autoplayBlocked, setAutoplayBlocked] = useState(false)
 
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const playbackRef = useRef<AdzanPlaybackHandle | null>(null)
   const timerRef = useRef<number | null>(null)
   const lastCheckedAtRef = useRef<Date>(new Date())
   const triggeredIdsRef = useRef<Set<string>>(new Set())
 
   const stopAdzan = useCallback(() => {
-    const audio = audioRef.current
-    if (audio) {
-      try {
-        audio.pause()
-        audio.currentTime = 0
-      } catch {
-        // Abaikan jika audio belum dimuat
-      }
+    if (playbackRef.current) {
+      playbackRef.current.stop()
+      playbackRef.current = null
     }
     setIsPlayingAdzan(false)
     setAutoplayBlocked(false)
   }, [])
 
   const playAdzan = useCallback(async () => {
-    const available = await checkAdzanAvailable()
-    if (!available) return
-
-    if (!audioRef.current) {
-      const audio = new Audio(ADZAN_AUDIO_PATH)
-      audio.preload = 'none'
-      audio.addEventListener('ended', () => {
-        setIsPlayingAdzan(false)
-        setAutoplayBlocked(false)
-      })
-      audio.addEventListener('error', () => {
-        setIsPlayingAdzan(false)
-        setAutoplayBlocked(false)
-      })
-      audioRef.current = audio
-    }
-
-    const audio = audioRef.current
-    if (!audio.paused) return
+    if (playbackRef.current) return
 
     try {
-      audio.currentTime = 0
-      await audio.play()
+      const handle = await startAdzanSound(() => {
+        playbackRef.current = null
+        setIsPlayingAdzan(false)
+        setAutoplayBlocked(false)
+      })
+      playbackRef.current = handle
       setIsPlayingAdzan(true)
       setAutoplayBlocked(false)
     } catch {
       // Kebijakan autoplay / izin audio perangkat menolak pemutaran otomatis
+      playbackRef.current = null
       setIsPlayingAdzan(false)
       setAutoplayBlocked(true)
     }
@@ -113,13 +98,11 @@ export function ReminderScheduler() {
 
   // Hentikan pemutaran audio eksternal saat pengingat dimatikan
   useEffect(() => {
-    if (!settings.reminders.enabled && audioRef.current) {
-      try {
-        audioRef.current.pause()
-        audioRef.current.currentTime = 0
-      } catch {
-        // Abaikan jika audio belum dimuat
-      }
+    if (!settings.reminders.enabled && playbackRef.current) {
+      playbackRef.current.stop()
+      playbackRef.current = null
+      setIsPlayingAdzan(false)
+      setAutoplayBlocked(false)
     }
   }, [settings.reminders.enabled])
 
@@ -147,11 +130,21 @@ export function ReminderScheduler() {
         navigate('/jadwal-sholat')
       })
 
-      if (allowSound && settings.reminders.mode === 'notification-adzan') {
+      const isPrayerAdzanEnabled =
+        settings.reminders.adzanPrayers?.[trigger.prayerName] ?? true
+
+      if (allowSound && settings.reminders.mode === 'notification-adzan' && isPrayerAdzanEnabled) {
         await playAdzan()
       }
     },
-    [navigate, playAdzan, settings.location?.city, settings.reminders.enabled, settings.reminders.mode],
+    [
+      navigate,
+      playAdzan,
+      settings.location?.city,
+      settings.reminders.adzanPrayers,
+      settings.reminders.enabled,
+      settings.reminders.mode,
+    ],
   )
 
   useEffect(() => {

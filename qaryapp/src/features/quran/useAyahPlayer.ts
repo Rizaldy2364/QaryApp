@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Ayah } from './types'
 
+export type AudioPlayMode = 'ayah' | 'surah' | null
+
 export interface AyahPlayerState {
+  playMode: AudioPlayMode
   playingAyahNumber: number | null
   isPlaying: boolean
   isLoading: boolean
@@ -14,6 +17,7 @@ export interface UseAyahPlayerOptions {
 }
 
 export function useAyahPlayer(options?: UseAyahPlayerOptions) {
+  const [playMode, setPlayMode] = useState<AudioPlayMode>(null)
   const [playingAyahNumber, setPlayingAyahNumber] = useState<number | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -21,6 +25,7 @@ export function useAyahPlayer(options?: UseAyahPlayerOptions) {
 
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentUrlRef = useRef<string>('')
+  const playModeRef = useRef<AudioPlayMode>(null)
   const optionsRef = useRef(options)
   const ayahsRef = useRef(options?.ayahs)
 
@@ -28,6 +33,10 @@ export function useAyahPlayer(options?: UseAyahPlayerOptions) {
     optionsRef.current = options
     ayahsRef.current = options?.ayahs
   })
+
+  useEffect(() => {
+    playModeRef.current = playMode
+  }, [playMode])
 
   // Inisialisasi audio element sekali
   useEffect(() => {
@@ -46,6 +55,10 @@ export function useAyahPlayer(options?: UseAyahPlayerOptions) {
     const handleEnded = () => {
       setIsPlaying(false)
       setIsLoading(false)
+      if (playModeRef.current === 'surah') {
+        setPlayMode(null)
+        return
+      }
       setPlayingAyahNumber((current) => {
         if (current === null) return null
         const list = ayahsRef.current
@@ -58,6 +71,7 @@ export function useAyahPlayer(options?: UseAyahPlayerOptions) {
                 if (audioRef.current) {
                   audioRef.current.src = nextAyah.audioUrl
                   currentUrlRef.current = nextAyah.audioUrl
+                  setPlayMode('ayah')
                   setPlayingAyahNumber(nextAyah.number)
                   setIsLoading(true)
                   audioRef.current.play().catch(() => {
@@ -77,7 +91,11 @@ export function useAyahPlayer(options?: UseAyahPlayerOptions) {
     const handleError = () => {
       setIsLoading(false)
       setIsPlaying(false)
-      setError('Gagal memutar audio ayat')
+      setError(
+        playModeRef.current === 'surah'
+          ? 'Gagal memutar audio surat penuh'
+          : 'Gagal memutar audio ayat',
+      )
     }
 
     audio.addEventListener('waiting', handleWaiting)
@@ -106,8 +124,7 @@ export function useAyahPlayer(options?: UseAyahPlayerOptions) {
 
     setError(null)
 
-    // Jika sedang memainkan ayat yang sama
-    if (playingAyahNumber === ayahNumber && currentUrlRef.current === audioUrl) {
+    if (playMode === 'ayah' && playingAyahNumber === ayahNumber && currentUrlRef.current === audioUrl) {
       if (audio.paused) {
         try {
           await audio.play()
@@ -118,7 +135,8 @@ export function useAyahPlayer(options?: UseAyahPlayerOptions) {
       return
     }
 
-    // Ganti track ayat baru
+    setPlayMode('ayah')
+    playModeRef.current = 'ayah'
     setPlayingAyahNumber(ayahNumber)
     setIsLoading(true)
     currentUrlRef.current = audioUrl
@@ -131,7 +149,40 @@ export function useAyahPlayer(options?: UseAyahPlayerOptions) {
       setIsPlaying(false)
       setError('Gagal memutar audio ayat')
     }
-  }, [playingAyahNumber])
+  }, [playMode, playingAyahNumber])
+
+  const playFullSurah = useCallback(async (audioUrl: string) => {
+    const audio = audioRef.current
+    if (!audio || !audioUrl) return
+
+    setError(null)
+
+    if (playMode === 'surah' && currentUrlRef.current === audioUrl) {
+      if (audio.paused) {
+        try {
+          await audio.play()
+        } catch {
+          setError('Gagal melanjutkan audio surat')
+        }
+      }
+      return
+    }
+
+    setPlayMode('surah')
+    playModeRef.current = 'surah'
+    setPlayingAyahNumber(null)
+    setIsLoading(true)
+    currentUrlRef.current = audioUrl
+    audio.src = audioUrl
+
+    try {
+      await audio.play()
+    } catch {
+      setIsLoading(false)
+      setIsPlaying(false)
+      setError('Gagal memutar audio surat penuh')
+    }
+  }, [playMode])
 
   const pause = useCallback(() => {
     const audio = audioRef.current
@@ -157,13 +208,16 @@ export function useAyahPlayer(options?: UseAyahPlayerOptions) {
       audio.pause()
       audio.currentTime = 0
     }
+    setPlayMode(null)
+    playModeRef.current = null
     setPlayingAyahNumber(null)
     setIsPlaying(false)
     setIsLoading(false)
+    setError(null)
   }, [])
 
   const toggle = useCallback((ayahNumber: number, audioUrl: string) => {
-    if (playingAyahNumber === ayahNumber) {
+    if (playMode === 'ayah' && playingAyahNumber === ayahNumber) {
       if (isPlaying) {
         pause()
       } else {
@@ -172,17 +226,48 @@ export function useAyahPlayer(options?: UseAyahPlayerOptions) {
     } else {
       playAyah(ayahNumber, audioUrl)
     }
-  }, [playingAyahNumber, isPlaying, pause, resume, playAyah])
+  }, [playMode, playingAyahNumber, isPlaying, pause, resume, playAyah])
 
-  return {
-    playingAyahNumber,
-    isPlaying,
-    isLoading,
-    error,
-    playAyah,
-    pause,
-    resume,
-    stop,
-    toggle,
-  }
+  const toggleFullSurah = useCallback((audioUrl: string) => {
+    if (playMode === 'surah') {
+      if (isPlaying) {
+        pause()
+      } else {
+        resume()
+      }
+    } else {
+      playFullSurah(audioUrl)
+    }
+  }, [playMode, isPlaying, pause, resume, playFullSurah])
+
+  return useMemo(
+    () => ({
+      playMode,
+      playingAyahNumber,
+      isPlaying,
+      isLoading,
+      error,
+      playAyah,
+      playFullSurah,
+      pause,
+      resume,
+      stop,
+      toggle,
+      toggleFullSurah,
+    }),
+    [
+      playMode,
+      playingAyahNumber,
+      isPlaying,
+      isLoading,
+      error,
+      playAyah,
+      playFullSurah,
+      pause,
+      resume,
+      stop,
+      toggle,
+      toggleFullSurah,
+    ],
+  )
 }

@@ -8,6 +8,7 @@ import React, {
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import {
   ArrowLeft,
+  ArrowUp,
   Bookmark,
   ChevronDown,
   HelpCircle,
@@ -25,6 +26,7 @@ import { Switch } from '../../components/ui/Switch'
 import { Skeleton } from '../../components/feedback/Skeleton'
 import { ErrorState } from '../../components/feedback/ErrorState'
 import { OfflineBanner } from '../../components/feedback/OfflineBanner'
+import { DEFAULT_RECITER_NAME } from '../../features/quran/constants'
 import { getSurahDetail, getSurahList } from '../../features/quran/api'
 import {
   formatRevelationPlace,
@@ -362,6 +364,16 @@ export default function SurahDetailPage() {
   const [isStaleCache, setIsStaleCache] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isTajwidHelpOpen, setIsTajwidHelpOpen] = useState(false)
+  const [showScrollTop, setShowScrollTop] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300)
+    }
+    handleScroll()
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   const handleAyahChange = useCallback((ayahNumber: number) => {
     const el = document.getElementById(`ayah-${ayahNumber}`)
@@ -437,11 +449,12 @@ export default function SurahDetailPage() {
   }
 
   // Berhenti memutar saat berpindah surah
+  const stopAudio = player.stop
   useEffect(() => {
     return () => {
-      player.stop()
+      stopAudio()
     }
-  }, [parsedSurahNumber, player])
+  }, [parsedSurahNumber, stopAudio])
 
   // Scroll otomatis ke ?ayat=K ketika data selesai dimuat
   useEffect(() => {
@@ -510,11 +523,12 @@ export default function SurahDetailPage() {
   }, [surah, parsedSurahNumber])
 
   // Handler toggle play dari row
+  const toggleAudio = player.toggle
   const handleTogglePlay = useCallback(
     (ayah: Ayah) => {
-      player.toggle(ayah.number, ayah.audioUrl)
+      toggleAudio(ayah.number, ayah.audioUrl)
     },
-    [player],
+    [toggleAudio],
   )
 
   // Handler toggle bookmark dari row
@@ -614,8 +628,11 @@ export default function SurahDetailPage() {
       : `سورة ${surah.nameArabic.trim()}`
     : ''
 
+  const isAudioBarOpen = player.playMode !== null && Boolean(surah)
+  const isFullSurahMode = player.playMode === 'surah'
+
   return (
-    <div className={cn('min-h-screen', player.playingAyahNumber ? 'pb-28' : 'pb-12')}>
+    <div className={cn('min-h-screen', isAudioBarOpen ? 'pb-28' : 'pb-12')}>
       {/* Header Navigasi Sticky (mengikuti scroll ke bawah) */}
       <header className="sticky top-0 z-30 border-b border-border/80 bg-bg/95 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-[720px] items-center gap-2 px-3 sm:px-4">
@@ -755,6 +772,33 @@ export default function SurahDetailPage() {
               <p className="mt-0.5 text-sm text-text-muted">
                 {surah.translation}
               </p>
+
+              {/* 5. Tombol Audio Surat Penuh */}
+              {surah.audioFullUrl && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => void player.toggleFullSurah(surah.audioFullUrl)}
+                    className="inline-flex min-h-[40px] items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-fg shadow-sm hover:opacity-95 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 cursor-pointer"
+                  >
+                    {isFullSurahMode && player.isPlaying ? (
+                      <>
+                        <Pause className="h-3.5 w-3.5" />
+                        <span>Jeda Audio Surat</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-3.5 w-3.5" />
+                        <span>
+                          {isFullSurahMode && player.isLoading
+                            ? 'Memuat Audio...'
+                            : 'Putar 1 Surat Penuh'}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </Card>
 
             {/* Banner Bismillah (Untuk surah selain 1 dan 9) */}
@@ -808,6 +852,23 @@ export default function SurahDetailPage() {
         onOpenTajwidHelp={() => setIsTajwidHelpOpen(true)}
       />
 
+      {/* Bubble Panah Kembali ke Atas (di bawah header) */}
+      <button
+        type="button"
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        aria-label="Kembali ke atas"
+        aria-hidden={!showScrollTop}
+        tabIndex={showScrollTop ? 0 : -1}
+        className={cn(
+          'fixed top-16 left-1/2 -translate-x-1/2 z-30 flex h-9 w-9 items-center justify-center rounded-full bg-transparent border border-primary/45 text-primary backdrop-blur-xs hover:bg-primary/10 active:scale-95 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer',
+          showScrollTop
+            ? 'opacity-100 scale-100 translate-y-0'
+            : 'opacity-0 scale-90 -translate-y-2 pointer-events-none',
+        )}
+      >
+        <ArrowUp className="h-4 w-4" strokeWidth={2.25} />
+      </button>
+
       {/* Modal Panduan Warna Tajwid */}
       <TajwidLegendModal
         isOpen={isTajwidHelpOpen}
@@ -815,37 +876,43 @@ export default function SurahDetailPage() {
       />
 
       {/* Fixed Bottom Audio Player Bar (Tinggi 84 px) */}
-      {player.playingAyahNumber !== null && surah && (
+      {isAudioBarOpen && surah && (
         <div className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-surface/95 backdrop-blur-md shadow-2xl">
           <div className="mx-auto flex h-[84px] max-w-[720px] items-center justify-between px-4">
-            {/* Info Ayat */}
+            {/* Info Ayat / Surat Penuh */}
             <div className="min-w-0 flex-1 pr-3">
               <div className="flex items-center gap-2">
-                <span className="flex h-5 items-center rounded bg-primary-soft px-1.5 text-xs font-semibold text-primary-ink">
-                  Ayat {player.playingAyahNumber}
+                <span className="flex h-5 shrink-0 items-center rounded bg-primary-soft px-1.5 text-xs font-semibold text-primary-ink">
+                  {isFullSurahMode ? 'Full Surat' : `Ayat ${player.playingAyahNumber}`}
                 </span>
                 <span className="truncate text-sm font-semibold text-text">
                   {surah.nameLatin}
                 </span>
               </div>
               <div className="truncate text-xs text-text-muted mt-0.5">
-                {player.isLoading
-                  ? 'Memuat audio...'
-                  : player.isPlaying
-                    ? 'Sedang diputar'
-                    : 'Dijeda'}
+                {player.error ? (
+                  <span className="text-danger">{player.error}</span>
+                ) : player.isLoading ? (
+                  'Memuat audio...'
+                ) : player.isPlaying ? (
+                  isFullSurahMode ? `${DEFAULT_RECITER_NAME} · Sedang diputar` : 'Sedang diputar'
+                ) : (
+                  'Dijeda'
+                )}
               </div>
             </div>
 
             {/* Kontrol Pemutar Audio */}
             <div className="flex items-center gap-1">
-              <IconButton
-                label="Ayat sebelumnya"
-                disabled={player.playingAyahNumber <= 1}
-                icon={<SkipBack className="h-4 w-4" />}
-                onClick={handlePrevAyahAudio}
-                className="h-9 w-9 min-h-[44px] min-w-[44px]"
-              />
+              {!isFullSurahMode && (
+                <IconButton
+                  label="Ayat sebelumnya"
+                  disabled={(player.playingAyahNumber ?? 1) <= 1}
+                  icon={<SkipBack className="h-4 w-4" />}
+                  onClick={handlePrevAyahAudio}
+                  className="h-9 w-9 min-h-[44px] min-w-[44px]"
+                />
+              )}
               <IconButton
                 label={player.isPlaying ? 'Jeda audio' : 'Lanjutkan audio'}
                 variant="primary"
@@ -857,19 +924,23 @@ export default function SurahDetailPage() {
                   )
                 }
                 onClick={() => {
-                  if (currentPlayingAyah) {
-                    player.toggle(currentPlayingAyah.number, currentPlayingAyah.audioUrl)
+                  if (isFullSurahMode) {
+                    void player.toggleFullSurah(surah.audioFullUrl)
+                  } else if (currentPlayingAyah) {
+                    void player.toggle(currentPlayingAyah.number, currentPlayingAyah.audioUrl)
                   }
                 }}
                 className="h-10 w-10 min-h-[44px] min-w-[44px] rounded-full"
               />
-              <IconButton
-                label="Ayat selanjutnya"
-                disabled={player.playingAyahNumber >= (surah.totalAyahs || 1)}
-                icon={<SkipForward className="h-4 w-4" />}
-                onClick={handleNextAyahAudio}
-                className="h-9 w-9 min-h-[44px] min-w-[44px]"
-              />
+              {!isFullSurahMode && (
+                <IconButton
+                  label="Ayat selanjutnya"
+                  disabled={(player.playingAyahNumber ?? 1) >= (surah.totalAyahs || 1)}
+                  icon={<SkipForward className="h-4 w-4" />}
+                  onClick={handleNextAyahAudio}
+                  className="h-9 w-9 min-h-[44px] min-w-[44px]"
+                />
+              )}
               <IconButton
                 label="Tutup pemutar audio"
                 icon={<X className="h-4 w-4 text-text-muted" />}

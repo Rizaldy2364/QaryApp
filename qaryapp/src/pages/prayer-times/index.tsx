@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link, useLocation } from 'react-router'
-import { Check, MapPin, Bell, AlertCircle } from 'lucide-react'
+import { Check, MapPin, Bell, AlertCircle, Volume2, VolumeX } from 'lucide-react'
 import { Header } from '../../components/layout/Header'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -11,7 +11,11 @@ import { Skeleton } from '../../components/feedback/Skeleton'
 import { ErrorState } from '../../components/feedback/ErrorState'
 import { useSettings } from '../../features/settings/useSettings'
 import { usePrayerTimes } from '../../features/prayer-times/usePrayerTimes'
-import { checkAdzanAvailable } from '../../features/notifications/adzan'
+import {
+  checkAdzanAvailable,
+  startAdzanSound,
+  type AdzanPlaybackHandle,
+} from '../../features/notifications/adzan'
 import {
   FIVE_PRAYERS,
   cleanPrayerTime,
@@ -33,6 +37,9 @@ export function PrayerTimesPage() {
   const { todayData, nextPrayer, status, timezone, refetch } = prayerTimesResult
 
   const [adzanAvailable, setAdzanAvailable] = useState<boolean | null>(null)
+  const [isTestingAdzan, setIsTestingAdzan] = useState(false)
+  const [adzanTestError, setAdzanTestError] = useState<string | null>(null)
+  const adzanPreviewRef = useRef<AdzanPlaybackHandle | null>(null)
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false)
   const [permissionFeedback, setPermissionFeedback] = useState<string | null>(null)
 
@@ -41,17 +48,19 @@ export function PrayerTimesPage() {
     checkAdzanAvailable().then((available) => {
       if (!ignore) {
         setAdzanAvailable(available)
-        if (!available && settings.reminders.mode === 'notification-adzan') {
-          updateSettings({
-            reminders: { ...settings.reminders, mode: 'notification' },
-          })
-        }
       }
     })
     return () => {
       ignore = true
     }
-  }, [settings.reminders, updateSettings])
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      adzanPreviewRef.current?.stop()
+      adzanPreviewRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     if (hash === '#pengingat') {
@@ -122,13 +131,48 @@ export function PrayerTimesPage() {
   }
 
   const handleModeChange = (nextMode: string) => {
-    if (nextMode === 'notification-adzan' && !adzanAvailable) return
     updateSettings({
       reminders: {
         ...settings.reminders,
         mode: nextMode as ReminderMode,
       },
     })
+  }
+
+  const handleTogglePrayerAdzan = (prayer: PrayerName) => {
+    const currentMap = settings.reminders.adzanPrayers
+    const nextVal = !(currentMap?.[prayer] ?? true)
+    updateSettings({
+      reminders: {
+        ...settings.reminders,
+        mode: nextVal ? 'notification-adzan' : settings.reminders.mode,
+        adzanPrayers: {
+          ...currentMap,
+          [prayer]: nextVal,
+        },
+      },
+    })
+  }
+
+  const handleToggleTestAdzan = async () => {
+    setAdzanTestError(null)
+    if (isTestingAdzan && adzanPreviewRef.current) {
+      adzanPreviewRef.current.stop()
+      adzanPreviewRef.current = null
+      setIsTestingAdzan(false)
+      return
+    }
+    try {
+      const handle = await startAdzanSound(() => {
+        adzanPreviewRef.current = null
+        setIsTestingAdzan(false)
+      })
+      adzanPreviewRef.current = handle
+      setIsTestingAdzan(true)
+    } catch {
+      setIsTestingAdzan(false)
+      setAdzanTestError('Peramban tidak dapat memutar suara adzan pada perangkat ini.')
+    }
   }
 
   // Hari dan tanggal sekarang
@@ -333,9 +377,44 @@ export function PrayerTimesPage() {
                     </div>
                   </div>
 
-                  <span className="font-mono text-xl font-bold tracking-tight text-text">
-                    {p.cleanTime}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleTogglePrayerAdzan(p.name)}
+                      aria-pressed={
+                        settings.reminders.mode === 'notification-adzan' &&
+                        (settings.reminders.adzanPrayers?.[p.name] ?? true)
+                      }
+                      aria-label={
+                        settings.reminders.mode === 'notification-adzan' &&
+                        (settings.reminders.adzanPrayers?.[p.name] ?? true)
+                          ? `Nonaktifkan suara adzan ${p.label}`
+                          : `Aktifkan suara adzan ${p.label}`
+                      }
+                      title={
+                        settings.reminders.mode === 'notification-adzan' &&
+                        (settings.reminders.adzanPrayers?.[p.name] ?? true)
+                          ? `Suara adzan ${p.label} aktif`
+                          : `Suara adzan ${p.label} nonaktif`
+                      }
+                      className={`flex h-9 w-9 min-h-[40px] min-w-[40px] items-center justify-center rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                        settings.reminders.mode === 'notification-adzan' &&
+                        (settings.reminders.adzanPrayers?.[p.name] ?? true)
+                          ? 'bg-primary-soft text-primary-ink'
+                          : 'text-text-muted/60 hover:bg-surface-elevated hover:text-text'
+                      }`}
+                    >
+                      {settings.reminders.mode === 'notification-adzan' &&
+                      (settings.reminders.adzanPrayers?.[p.name] ?? true) ? (
+                        <Volume2 className="h-4 w-4" />
+                      ) : (
+                        <VolumeX className="h-4 w-4" />
+                      )}
+                    </button>
+                    <span className="font-mono text-xl font-bold tracking-tight text-text">
+                      {p.cleanTime}
+                    </span>
+                  </div>
                 </Card>
               )
             })}
@@ -343,14 +422,14 @@ export function PrayerTimesPage() {
         )}
 
         {/* Seksi Pengingat Sholat */}
-        <section id="pengingat" aria-label="Pengingat Sholat" className="mt-8 scroll-mt-6">
-          <div className="flex items-center justify-between mb-2">
+        <section id="pengingat" aria-label="Pengingat Sholat" className="mt-8 scroll-mt-6 space-y-3">
+          <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-text uppercase tracking-wider">
               Pengingat Sholat
             </h2>
           </div>
 
-          <Card className="p-4 space-y-4">
+          <Card className="p-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-ink">
@@ -408,36 +487,59 @@ export function PrayerTimesPage() {
                 <span>{permissionFeedback}</span>
               </div>
             )}
-
-            <div className="space-y-2 pt-2 border-t border-border/60">
-              <span className="block text-xs font-medium text-text">Mode pengingat</span>
-              <SegmentedControl
-                options={[
-                  { value: 'notification', label: 'Notifikasi saja' },
-                  {
-                    value: 'notification-adzan',
-                    label: adzanAvailable ? 'Notifikasi + Adzan' : 'Adzan (tidak tersedia)',
-                  },
-                ]}
-                value={
-                  adzanAvailable === false && settings.reminders.mode === 'notification-adzan'
-                    ? 'notification'
-                    : settings.reminders.mode
-                }
-                onChange={handleModeChange}
-              />
-              {adzanAvailable === false && (
-                <p className="text-xs text-text-muted">
-                  Berkas audio adzan (/audio/adzan.mp3) belum tersedia, sehingga mode adzan dinonaktifkan.
-                </p>
-              )}
-            </div>
-
-            <p className="text-xs leading-relaxed text-text-muted">
-              Pengingat hanya berbunyi saat QaryApp sedang terbuka. Untuk pengingat saat aplikasi
-              tertutup, tunggu versi aplikasi Android.
-            </p>
           </Card>
+
+          <div
+            aria-hidden={!settings.reminders.enabled}
+            className={`grid transition-[grid-template-rows,opacity,transform] duration-300 ease-out motion-reduce:transition-none ${
+              settings.reminders.enabled
+                ? 'grid-rows-[1fr] opacity-100 translate-y-0'
+                : 'grid-rows-[0fr] opacity-0 -translate-y-2 pointer-events-none'
+            }`}
+          >
+            <div className="overflow-hidden">
+              <Card className="p-4 space-y-3">
+                <div className="space-y-2.5">
+                  <span className="block text-xs font-medium text-text">Mode pengingat</span>
+                  <SegmentedControl
+                    options={[
+                      { value: 'notification', label: 'Notifikasi saja' },
+                      { value: 'notification-adzan', label: 'Notifikasi + Adzan' },
+                    ]}
+                    value={settings.reminders.mode}
+                    onChange={handleModeChange}
+                  />
+                  {settings.reminders.mode === 'notification-adzan' && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                      <p className="text-xs text-text-muted">
+                        {adzanAvailable
+                          ? 'Menggunakan audio adzan (/audio/adzan.mp3). Ketuk ikon speaker pada tiap waktu sholat untuk memilih.'
+                          : 'Menggunakan nada pengingat adzan bawaan. Ketuk ikon speaker pada tiap waktu sholat untuk memilih.'}
+                      </p>
+                      <Button
+                        variant="outline"
+                        tabIndex={settings.reminders.enabled ? 0 : -1}
+                        onClick={() => void handleToggleTestAdzan()}
+                        className="h-9 px-3 text-xs"
+                      >
+                        {isTestingAdzan ? 'Hentikan suara' : 'Uji suara adzan'}
+                      </Button>
+                    </div>
+                  )}
+                  {adzanTestError && (
+                    <p role="alert" className="text-xs text-danger">
+                      {adzanTestError}
+                    </p>
+                  )}
+                </div>
+
+                <p className="text-xs leading-relaxed text-text-muted pt-1 border-t border-border/60">
+                  Pengingat hanya berbunyi saat QaryApp sedang terbuka. Untuk pengingat saat aplikasi
+                  tertutup, tunggu versi aplikasi Android.
+                </p>
+              </Card>
+            </div>
+          </div>
         </section>
       </div>
     </div>
