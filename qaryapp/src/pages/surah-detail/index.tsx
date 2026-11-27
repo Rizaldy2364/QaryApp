@@ -4,9 +4,11 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { useParams, useSearchParams } from 'react-router'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import {
+  ArrowLeft,
   Bookmark,
+  ChevronDown,
   Pause,
   Play,
   Settings2,
@@ -14,7 +16,6 @@ import {
   SkipForward,
   X,
 } from 'lucide-react'
-import { Header } from '../../components/layout/Header'
 import { Card } from '../../components/ui/Card'
 import { IconButton } from '../../components/ui/IconButton'
 import { SegmentedControl } from '../../components/ui/SegmentedControl'
@@ -22,7 +23,11 @@ import { Switch } from '../../components/ui/Switch'
 import { Skeleton } from '../../components/feedback/Skeleton'
 import { ErrorState } from '../../components/feedback/ErrorState'
 import { OfflineBanner } from '../../components/feedback/OfflineBanner'
-import { getSurahDetail } from '../../features/quran/api'
+import { getSurahDetail, getSurahList } from '../../features/quran/api'
+import {
+  formatRevelationPlace,
+  getSurahJuzLabel,
+} from '../../features/quran/juz'
 import { useAyahPlayer } from '../../features/quran/useAyahPlayer'
 import { useBookmarks } from '../../features/bookmarks/useBookmarks'
 import { useSettings } from '../../features/settings/useSettings'
@@ -69,12 +74,8 @@ const AyahRow = React.memo(function AyahRow({
     <div
       id={`ayah-${ayah.number}`}
       data-ayah={ayah.number}
-      style={{
-        contentVisibility: 'auto',
-        containIntrinsicSize: '180px',
-      }}
       className={cn(
-        'rounded-2xl border border-border bg-surface p-4 transition-colors',
+        'scroll-mt-20 rounded-2xl border border-border bg-surface p-4 transition-colors',
         isPlaying && 'border-primary bg-primary-soft/20 ring-1 ring-primary',
       )}
     >
@@ -281,6 +282,7 @@ function ReadingSettingsSheet({
 // ==========================================
 
 export default function SurahDetailPage() {
+  const navigate = useNavigate()
   const { surahNumber: paramNumber } = useParams<{ surahNumber: string }>()
   const [searchParams] = useSearchParams()
   const targetAyatParam = searchParams.get('ayat')
@@ -293,6 +295,8 @@ export default function SurahDetailPage() {
   const { isBookmarked, toggleBookmark } = useBookmarks()
 
   const [surah, setSurah] = useState<Surah | null>(null)
+  const [surahList, setSurahList] = useState<Surah[]>([])
+  const [activeAyat, setActiveAyat] = useState<number>(1)
   usePageTitle(surah ? surah.nameLatin : isValidSurahNumber ? `Surah ${parsedSurahNumber}` : 'Surah')
   const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(!isValidSurahNumber)
@@ -312,6 +316,23 @@ export default function SurahDetailPage() {
     onAyahChange: handleAyahChange,
   })
 
+  // Muat daftar 114 surah untuk pemilih navigasi pindah surat
+  useEffect(() => {
+    let ignore = false
+    getSurahList()
+      .then((res) => {
+        if (!ignore) {
+          setSurahList(res.surahs)
+        }
+      })
+      .catch(() => {
+        // Abaikan jika daftar surah belum tersedia
+      })
+    return () => {
+      ignore = true
+    }
+  }, [])
+
   // Muat detail surah
   useEffect(() => {
     if (!isValidSurahNumber) return
@@ -320,6 +341,7 @@ export default function SurahDetailPage() {
       .then((result) => {
         if (!ignore) {
           setSurah(result.surah)
+          setActiveAyat(1)
           setIsStaleCache(result.isStale && !navigator.onLine)
           setIsLoading(false)
         }
@@ -382,6 +404,8 @@ export default function SurahDetailPage() {
 
   // IntersectionObserver untuk melacak "Terakhir Dibaca"
   const lastReadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const manualJumpTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isManualJumpRef = useRef(false)
   useEffect(() => {
     if (!surah || !surah.ayahs || surah.ayahs.length === 0) return
 
@@ -396,6 +420,9 @@ export default function SurahDetailPage() {
         if (!ayahNumAttr) return
         const ayahNum = parseInt(ayahNumAttr, 10)
         if (isNaN(ayahNum)) return
+        if (!isManualJumpRef.current) {
+          setActiveAyat(ayahNum)
+        }
 
         if (lastReadDebounceRef.current) {
           clearTimeout(lastReadDebounceRef.current)
@@ -475,6 +502,43 @@ export default function SurahDetailPage() {
     }
   }
 
+  const handleBack = () => {
+    if (
+      window.history.state &&
+      typeof window.history.state.idx === 'number' &&
+      window.history.state.idx > 0
+    ) {
+      navigate(-1)
+    } else {
+      navigate('/quran', { replace: true })
+    }
+  }
+
+  const handleSelectSurah = (nextSurahNumber: number) => {
+    if (nextSurahNumber !== parsedSurahNumber) {
+      setIsLoading(true)
+      navigate(`/quran/${nextSurahNumber}`)
+    }
+  }
+
+  const handleSelectAyat = (ayahNumber: number) => {
+    setActiveAyat(ayahNumber)
+    isManualJumpRef.current = true
+    if (manualJumpTimeoutRef.current) {
+      clearTimeout(manualJumpTimeoutRef.current)
+    }
+    manualJumpTimeoutRef.current = setTimeout(() => {
+      isManualJumpRef.current = false
+    }, 700)
+
+    const el = document.getElementById(`ayah-${ayahNumber}`)
+    if (el) {
+      const headerOffset = 68
+      const top = el.getBoundingClientRect().top + window.scrollY - headerOffset
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+    }
+  }
+
   // Apakah Bismillah harus ditampilkan sebagai header khusus di awal surah?
   // - Surah 1: Bismillah sudah merupakan ayat 1
   // - Surah 9: Tidak ada Bismillah
@@ -485,24 +549,89 @@ export default function SurahDetailPage() {
     return <NotFoundPage />
   }
 
+  const totalAyahsCount = surah?.totalAyahs ?? surah?.ayahs?.length ?? 0
+  const arabicSurahTitle = surah
+    ? surah.nameArabic.trim().startsWith('سورة')
+      ? surah.nameArabic.trim()
+      : `سورة ${surah.nameArabic.trim()}`
+    : ''
+
   return (
     <div className={cn('min-h-screen', player.playingAyahNumber ? 'pb-28' : 'pb-12')}>
-      <Header
-        title={surah ? surah.nameLatin : `Surah ${parsedSurahNumber}`}
-        subtitle={
-          surah
-            ? `${surah.translation} · ${surah.totalAyahs} ayat · ${surah.revelationPlace}`
-            : undefined
-        }
-        showBack={true}
-        rightAction={
+      {/* Header Navigasi Sticky (mengikuti scroll ke bawah) */}
+      <header className="sticky top-0 z-30 border-b border-border/80 bg-bg/95 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-[720px] items-center gap-2 px-3 sm:px-4">
+          <button
+            type="button"
+            onClick={handleBack}
+            aria-label="Kembali ke halaman sebelumnya"
+            className="flex h-10 w-10 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-text hover:bg-surface active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
+          >
+            <ArrowLeft className="h-5 w-5" strokeWidth={1.75} />
+          </button>
+
+          {/* Pemilih Pindah Surat & Pindah Ayat */}
+          <div className="flex flex-1 min-w-0 items-center gap-2">
+            {/* Pindah Surat */}
+            <div className="relative flex-1 min-w-0">
+              <select
+                aria-label="Pindah surat"
+                value={parsedSurahNumber}
+                onChange={(e) => handleSelectSurah(Number(e.target.value))}
+                className="w-full h-10 min-h-[44px] appearance-none rounded-xl border border-border bg-surface pl-3 pr-8 text-xs sm:text-sm font-semibold text-text truncate focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+              >
+                {surahList.length > 0 ? (
+                  surahList.map((item) => (
+                    <option key={item.number} value={item.number}>
+                      {item.number}. {item.nameLatin}
+                    </option>
+                  ))
+                ) : (
+                  <option value={parsedSurahNumber}>
+                    {parsedSurahNumber}. {surah ? surah.nameLatin : `Surah ${parsedSurahNumber}`}
+                  </option>
+                )}
+              </select>
+              <ChevronDown
+                aria-hidden="true"
+                className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted"
+              />
+            </div>
+
+            {/* Pindah Ayat */}
+            <div className="relative w-[104px] sm:w-[116px] shrink-0">
+              <select
+                aria-label="Pindah ayat"
+                value={activeAyat}
+                disabled={totalAyahsCount === 0}
+                onChange={(e) => handleSelectAyat(Number(e.target.value))}
+                className="w-full h-10 min-h-[44px] appearance-none rounded-xl border border-border bg-surface pl-3 pr-7 text-xs sm:text-sm font-medium text-text focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 cursor-pointer"
+              >
+                {totalAyahsCount > 0 ? (
+                  Array.from({ length: totalAyahsCount }, (_, idx) => idx + 1).map((num) => (
+                    <option key={num} value={num}>
+                      Ayat {num}
+                    </option>
+                  ))
+                ) : (
+                  <option value={1}>Ayat 1</option>
+                )}
+              </select>
+              <ChevronDown
+                aria-hidden="true"
+                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted"
+              />
+            </div>
+          </div>
+
           <IconButton
             label="Pengaturan tampilan membaca"
             icon={<Settings2 className="h-5 w-5" />}
             onClick={() => setIsSettingsOpen(true)}
+            className="shrink-0"
           />
-        }
-      />
+        </div>
+      </header>
 
       <main className="mx-auto max-w-[720px] px-4 pt-3">
         {isStaleCache && (
@@ -513,7 +642,7 @@ export default function SurahDetailPage() {
 
         {isLoading ? (
           <div className="space-y-4">
-            <Skeleton className="h-14 w-full rounded-2xl" />
+            <Skeleton className="h-40 w-full rounded-2xl" />
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="rounded-2xl border border-border bg-surface p-4">
                 <div className="mb-3 flex justify-between">
@@ -533,6 +662,43 @@ export default function SurahDetailPage() {
           />
         ) : (
           <div className="space-y-4">
+            {/* Kartu Info Surah di Bawah Header Navigasi */}
+            <Card className="relative overflow-hidden border-primary/20 bg-gradient-to-b from-primary-soft/45 via-surface to-surface px-5 py-6 text-center">
+              {/* 1. Tempat diturunkan (Makkiyyah/Madaniyyah), Juz, dan Jumlah Ayat */}
+              <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-medium text-primary-ink dark:text-primary">
+                <span className="rounded-full bg-primary-soft px-3 py-1">
+                  {formatRevelationPlace(surah.revelationPlace)}
+                </span>
+                <span aria-hidden="true" className="text-text-muted">·</span>
+                <span className="rounded-full bg-primary-soft px-3 py-1">
+                  {getSurahJuzLabel(surah.number)}
+                </span>
+                <span aria-hidden="true" className="text-text-muted">·</span>
+                <span className="rounded-full bg-primary-soft px-3 py-1">
+                  {surah.totalAyahs} Ayat
+                </span>
+              </div>
+
+              {/* 2. Tulisan سورة + Nama Surah Bahasa Arab bergaya Al-Qur'an */}
+              <div
+                dir="rtl"
+                lang="ar"
+                className="mt-4 font-arab text-3xl sm:text-4xl leading-[1.9] text-primary-ink dark:text-primary"
+              >
+                {arabicSurahTitle}
+              </div>
+
+              {/* 3. Nama Surah Bahasa Indonesia */}
+              <h1 className="mt-1 text-xl font-bold tracking-tight text-text">
+                {surah.nameLatin}
+              </h1>
+
+              {/* 4. Arti dari Surah */}
+              <p className="mt-0.5 text-sm text-text-muted">
+                {surah.translation}
+              </p>
+            </Card>
+
             {/* Banner Bismillah (Untuk surah selain 1 dan 9) */}
             {showBismillahBanner && (
               <Card className="my-2 border-border/80 bg-surface text-center py-6">
