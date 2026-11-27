@@ -175,10 +175,12 @@ Teks Arab memakai `dir="rtl"` dan rata kanan; terjemahan tetap rata kiri. Tata l
 | Tersimpan - kosong | Ya | Ikon, penjelasan, tombol Buka Al-Qur'an |
 | Pilih Lokasi | Tidak | Lokasi saat ini, Gunakan lokasi saya, baris Negara, cari kota, daftar kota |
 | Pilih Negara | Tidak | Kolom cari dan daftar negara |
-| Jadwal Sholat | Tidak | Lima waktu dengan tanda sudah dilaksanakan, ringkasan, pengingat |
-| Notifikasi | Tidak | Daftar Hari ini dan Kemarin, Tandai semua dibaca, Atur pengingat |
+| Jadwal Sholat | Tidak | Lima waktu dengan tanda sudah dilaksanakan, ringkasan, dan bagian Pengingat aktif (saat aplikasi terbuka) |
+| Notifikasi | Tidak | Daftar Hari ini, Kemarin, dan Sebelumnya, Tandai semua dibaca, Atur pengingat |
 | Profil (belum masuk) | Ya (Profil aktif) | Kartu akun dengan Masuk dan Daftar, Pengaturan |
-| Profil (sudah masuk) | Ya (Profil aktif) | Kartu akun, Pengaturan, Bagikan aplikasi, Keluar |
+| Profil (sudah masuk) | Ya (Profil aktif) | Kartu akun (avatar inisial, status sinkronisasi — belum ada artboard), Pengaturan, Bagikan aplikasi, Keluar, Hapus akun |
+| Masuk (`/masuk`) | Tidak | Email, kata sandi, tautan Daftar (belum ada artboard) |
+| Daftar (`/daftar`) | Tidak | Nama (opsional), email, kata sandi, catatan privasi, tautan Masuk (belum ada artboard) |
 | Ikon QaryApp | - | Ikon besar, ukuran kecil, potongan bulat |
 
 ## 9. Keadaan Khusus
@@ -226,3 +228,4 @@ Item berikut ada di `prd.md` tetapi belum divisualkan:
 - Mode gelap untuk semua halaman.
 - Tampilan layar lebar (sidebar).
 - Penanda "data tersimpan" pada halaman selain Beranda.
+- Halaman Masuk (`/masuk`), halaman Daftar (`/daftar`), serta variasi status sinkronisasi pada kartu Profil (belum ada artboard).

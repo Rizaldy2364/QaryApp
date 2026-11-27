@@ -5,6 +5,7 @@ import { StackLayout } from '../components/layout/StackLayout'
 import { PageSkeleton } from '../components/layout/PageSkeleton'
 import { ScrollToTop } from '../components/layout/ScrollToTop'
 import { ErrorBoundary } from '../components/feedback/ErrorBoundary'
+import { ReminderScheduler } from '../features/notifications/ReminderScheduler'
 
 // Beranda dan NotFound dimuat langsung untuk responsivitas instan
 import HomePage from '../pages/home'
@@ -25,6 +26,8 @@ const CountryPage = lazy(() => import('../pages/country'))
 const PrayerTimesPage = lazy(() => import('../pages/prayer-times'))
 const NotificationsPage = lazy(() => import('../pages/notifications'))
 const DataSourcesPage = lazy(() => import('../pages/data-sources'))
+const LoginPage = lazy(() => import('../pages/login'))
+const RegisterPage = lazy(() => import('../pages/register'))
 
 // Halaman dev hanya diimpor dinamis saat mode dev
 const DevComponentsPage = import.meta.env.DEV
@@ -35,6 +38,7 @@ export function AppRouter() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <ReminderScheduler />
       <ErrorBoundary>
         <Suspense fallback={<PageSkeleton />}>
           <Routes>
@@ -59,6 +63,8 @@ export function AppRouter() {
             <Route path="/jadwal-sholat" element={<PrayerTimesPage />} />
             <Route path="/notifikasi" element={<NotificationsPage />} />
             <Route path="/profil/sumber-data" element={<DataSourcesPage />} />
+            <Route path="/masuk" element={<LoginPage />} />
+            <Route path="/daftar" element={<RegisterPage />} />
             {import.meta.env.DEV && DevComponentsPage && (
               <Route
                 path="/dev/components"

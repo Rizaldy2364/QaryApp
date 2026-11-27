@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useSearchParams, useNavigate } from 'react-router'
-import { Bookmark, Heart, BookOpen, Trash2 } from 'lucide-react'
+import { Link, useSearchParams, useNavigate } from 'react-router'
+import { Bookmark, Heart, BookOpen, Trash2, Cloud, X } from 'lucide-react'
 import { Header } from '../../components/layout/Header'
 import { Tabs } from '../../components/ui/Tabs'
 import { Button } from '../../components/ui/Button'
@@ -9,12 +9,27 @@ import { IconButton } from '../../components/ui/IconButton'
 import { ListRow } from '../../components/ui/ListRow'
 import { EmptyState } from '../../components/feedback/EmptyState'
 import { Skeleton } from '../../components/feedback/Skeleton'
+import { useAuth } from '../../features/auth/useAuth'
 import { useBookmarks } from '../../features/bookmarks/useBookmarks'
 import { useDoaFavorites } from '../../features/doa/useDoaFavorites'
 import { getSurahDetail } from '../../features/quran/api'
 import { loadDoaData } from '../../features/doa/api'
 import { usePageTitle } from '../../lib/usePageTitle'
 import type { Doa } from '../../types'
+
+const LOGIN_PROMPT_DISMISS_KEY = 'qaryapp:login-prompt-dismissed-until'
+const DISMISS_DURATION_MS = 14 * 24 * 60 * 60 * 1000
+
+function isLoginPromptDismissed(): boolean {
+  try {
+    const raw = localStorage.getItem(LOGIN_PROMPT_DISMISS_KEY)
+    if (!raw) return false
+    const until = Number(raw)
+    return Number.isFinite(until) && Date.now() < until
+  } catch {
+    return false
+  }
+}
 
 interface LoadedAyahBookmark {
   surahNumber: number
@@ -31,8 +46,27 @@ export function BookmarksPage() {
   const navigate = useNavigate()
   const activeTab = searchParams.get('tab') === 'doa' ? 'doa' : 'ayat'
 
+  const { isAuthenticated } = useAuth()
   const { bookmarks, toggleBookmark, isLoading: loadingBookmarks } = useBookmarks()
   const { favorites, toggleFavorite, isLoading: loadingFavorites, feedbackMessage: doaFeedback } = useDoaFavorites()
+  const [promptDismissed, setPromptDismissed] = useState<boolean>(() => isLoginPromptDismissed())
+
+  const handleDismissPrompt = () => {
+    setPromptDismissed(true)
+    try {
+      localStorage.setItem(
+        LOGIN_PROMPT_DISMISS_KEY,
+        String(Date.now() + DISMISS_DURATION_MS),
+      )
+    } catch {
+      // Abaikan jika penyimpanan lokal dibatasi
+    }
+  }
+
+  const showGuestLoginPrompt =
+    !isAuthenticated &&
+    !promptDismissed &&
+    (bookmarks.length > 0 || favorites.length > 0)
 
   // Data doa map untuk lookup judul & kategori
   const [doaMap, setDoaMap] = useState<Map<string, Doa>>(() => new Map())
@@ -299,6 +333,37 @@ export function BookmarksPage() {
                   })}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Ajakan masuk ringan hanya untuk tamu yang memiliki bookmark/favorit */}
+          {showGuestLoginPrompt && (
+            <div className="mt-6">
+              <Card className="flex items-center justify-between gap-3 bg-primary-soft border-primary/20 p-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface text-primary-ink">
+                    <Cloud className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-text leading-relaxed">
+                      Login untuk mengamankan bookmark Anda
+                    </p>
+                    <Link
+                      to="/masuk"
+                      className="inline-flex min-h-[36px] items-center text-xs font-semibold text-primary-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+                    >
+                      Masuk
+                    </Link>
+                  </div>
+                </div>
+
+                <IconButton
+                  label="Tutup ajakan masuk"
+                  icon={<X className="h-4 w-4 text-text-muted" />}
+                  onClick={handleDismissPrompt}
+                  className="shrink-0 min-h-[44px] min-w-[44px]"
+                />
+              </Card>
             </div>
           )}
         </div>

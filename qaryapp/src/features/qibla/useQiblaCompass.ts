@@ -1,68 +1,161 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 
-interface DeviceOrientationEventIOS extends DeviceOrientationEvent {
+export interface DeviceOrientationEventIOS extends DeviceOrientationEvent {
   webkitCompassHeading?: number
+  webkitCompassAccuracy?: number
 }
 
 interface DeviceOrientationEventConstructorIOS {
   requestPermission?: () => Promise<'granted' | 'denied'>
 }
 
-interface CompassState {
+export type CompassAccuracySource = 'absolute' | 'relative' | 'none'
+export type CompassAccuracyStatus =
+  | 'accurate'
+  | 'approximate'
+  | 'needs_calibration'
+  | 'unavailable'
+
+export interface CompassState {
   heading: number // Derajat hadap kompas (0 - 360)
   verticalTilt: number // Kemiringan vertikal (pitch / beta)
   horizontalTilt: number // Kemiringan horizontal (roll / gamma)
   hasSensor: boolean
   isSupported: boolean
   permissionState: 'prompt' | 'granted' | 'denied' | 'unsupported'
+  accuracySource: CompassAccuracySource
+  needsCalibration: boolean
+  accuracyStatus: CompassAccuracyStatus
+}
+
+function getScreenOrientationAngle(): number {
+  if (typeof window === 'undefined') return 0
+  return typeof window.screen?.orientation?.angle === 'number'
+    ? window.screen.orientation.angle
+    : 0
 }
 
 /**
- * Menghitung arah kompas (azimuth 0-360°) dengan kompensasi kemiringan (tilt-compensation)
- * berdasarkan konvensi rotasi Euler Z-X'-Y'' dari spesifikasi W3C DeviceOrientation.
+ * Menghitung arah kompas (0 - 360° searah jarum jam dari Utara) berdasarkan
+ * konvensi W3C DeviceOrientation (`alpha` berlawanan jarum jam).
+ * Untuk posisi ponsel normal (|beta| < 75°), digunakan proyeksi langsung agar
+ * tidak terjadi lonjakan sudut di sekitar 45°. Untuk posisi hampir tegak
+ * (|beta| >= 75°), digunakan proyeksi sumbu -Z (punggung ponsel).
  */
-function computeTiltCompensatedHeading(
+export function computeTiltCompensatedHeading(
   alpha: number,
   beta: number,
   gamma: number,
+  screenAngle = getScreenOrientationAngle(),
 ): number {
-  const deg2rad = Math.PI / 180
-  const _x = beta * deg2rad
-  const _y = gamma * deg2rad
-  const _z = alpha * deg2rad
+  let headingDeg: number
 
-  const cX = Math.cos(_x)
-  const cY = Math.cos(_y)
-  const cZ = Math.cos(_z)
-  const sX = Math.sin(_x)
-  const sY = Math.sin(_y)
-  const sZ = Math.sin(_z)
-
-  let Vx: number
-  let Vy: number
-
-  if (Math.abs(beta) < 45) {
-    // Ponsel cenderung datar: proyeksi sumbu +Y (ujung atas ponsel) ke bidang horizontal Timur-Utara
-    Vx = -sZ * cX
-    Vy = cZ * cX
+  if (Math.abs(beta) < 75) {
+    // Konvensi W3C: alpha meningkat berlawanan arah jarum jam dari Utara
+    headingDeg = (360 - alpha) % 360
   } else {
-    // Ponsel dipegang tegak/miring: proyeksi sumbu -Z (punggung ponsel) ke bidang horizontal
-    Vx = -cZ * sY - sZ * sX * cY
-    Vy = -sZ * sY + cZ * sX * cY
+    const deg2rad = Math.PI / 180
+    const _x = beta * deg2rad
+    const _y = gamma * deg2rad
+    const _z = alpha * deg2rad
+
+    const cX = Math.cos(_x)
+    const cY = Math.cos(_y)
+    const cZ = Math.cos(_z)
+    const sX = Math.sin(_x)
+    const sY = Math.sin(_y)
+    const sZ = Math.sin(_z)
+
+    // Proyeksi sumbu -Z (punggung ponsel) ke bidang horizontal Timur (Vx) & Utara (Vy)
+    const Vx = -cZ * sY - sZ * sX * cY
+    const Vy = -sZ * sY + cZ * sX * cY
+
+    if (Math.abs(Vx) < 1e-6 && Math.abs(Vy) < 1e-6) {
+      headingDeg = (360 - alpha) % 360
+    } else {
+      let rad = Math.atan2(Vx, Vy)
+      if (rad < 0) rad += 2 * Math.PI
+      headingDeg = (rad * 180) / Math.PI
+    }
+    void cX
   }
 
-  let compassHeading = Math.atan2(Vx, Vy)
-  if (compassHeading < 0) {
-    compassHeading += 2 * Math.PI
+  return (headingDeg + screenAngle + 360) % 360
+}
+
+/**
+ * Mengekstrak heading mentah dari DeviceOrientationEvent.
+ * Pada iOS, `webkitCompassHeading` sudah memperhitungkan orientasi layar dan
+ * arah jarum jam dari Utara, sehingga tidak perlu digeser lagi dengan screenAngle.
+ */
+export function extractHeadingFromEvent(
+  event: DeviceOrientationEvent,
+  isAbsoluteListener: boolean,
+  screenAngle = getScreenOrientationAngle(),
+): {
+  rawHeading: number | null
+  isAbsolute: boolean
+  iosAccuracy: number | null
+} {
+  const iosEvent = event as DeviceOrientationEventIOS
+
+  if (
+    typeof iosEvent.webkitCompassHeading === 'number' &&
+    Number.isFinite(iosEvent.webkitCompassHeading) &&
+    iosEvent.webkitCompassHeading >= 0
+  ) {
+    const iosAccuracy =
+      typeof iosEvent.webkitCompassAccuracy === 'number' &&
+      Number.isFinite(iosEvent.webkitCompassAccuracy)
+        ? iosEvent.webkitCompassAccuracy
+        : null
+
+    return {
+      rawHeading: ((iosEvent.webkitCompassHeading % 360) + 360) % 360,
+      isAbsolute: true,
+      iosAccuracy,
+    }
   }
 
-  // Sesuaikan dengan orientasi layar (portrait/landscape)
-  const screenAngle =
-    typeof window !== 'undefined' && window.screen?.orientation?.angle
-      ? window.screen.orientation.angle
-      : 0
+  if (typeof event.alpha === 'number' && Number.isFinite(event.alpha)) {
+    const isAbsolute = isAbsoluteListener || event.absolute === true
+    const rawHeading = computeTiltCompensatedHeading(
+      event.alpha,
+      event.beta ?? 0,
+      event.gamma ?? 0,
+      screenAngle,
+    )
+    return {
+      rawHeading,
+      isAbsolute,
+      iosAccuracy: null,
+    }
+  }
 
-  return ((compassHeading * 180) / Math.PI + screenAngle + 360) % 360
+  return {
+    rawHeading: null,
+    isAbsolute: false,
+    iosAccuracy: null,
+  }
+}
+
+/**
+ * Penghalusan melingkar adaptif: responsif saat ponsel diputar cepat dan
+ * meredam jitter mikro saat ponsel diam.
+ */
+export function smoothCircularHeading(prev: number | null, next: number): number {
+  if (prev === null) return ((next % 360) + 360) % 360
+  const diff = ((next - prev + 540) % 360) - 180
+  const absDiff = Math.abs(diff)
+  let factor = 0.1
+  if (absDiff > 45) {
+    factor = 0.75
+  } else if (absDiff > 15) {
+    factor = 0.45
+  } else if (absDiff > 1.5) {
+    factor = 0.22
+  }
+  return (prev + diff * factor + 360) % 360
 }
 
 function checkRequiresIOSPermission(): boolean {
@@ -83,60 +176,62 @@ export function useQiblaCompass() {
     hasSensor: false,
     isSupported: typeof window !== 'undefined' && 'DeviceOrientationEvent' in window,
     permissionState: requiresIOSPermission ? 'prompt' : 'granted',
+    accuracySource: 'none',
+    needsCalibration: false,
+    accuracyStatus: 'unavailable',
   })
 
   const smoothedHeadingRef = useRef<number | null>(null)
   const hasAbsoluteEventRef = useRef(false)
   const lastEmitTimeRef = useRef(0)
+  // Pelacak osilasi cepat untuk mendeteksi gangguan magnetik pada Android/browser non-iOS
+  const recentDeltasRef = useRef<Array<{ delta: number; time: number }>>([])
+  const lastRawHeadingRef = useRef<number | null>(null)
 
-  // Handler orientasi perangkat dengan filter penghalus (low-pass circular) & throttling
   const processOrientationEvent = useCallback(
-    (event: DeviceOrientationEvent, isAbsoluteSource: boolean) => {
-      if (isAbsoluteSource && event.alpha !== null) {
+    (event: DeviceOrientationEvent, isAbsoluteListener: boolean) => {
+      const { rawHeading, isAbsolute, iosAccuracy } = extractHeadingFromEvent(
+        event,
+        isAbsoluteListener,
+      )
+
+      if (rawHeading === null) return
+
+      if (isAbsolute) {
         hasAbsoluteEventRef.current = true
-      } else if (
-        !isAbsoluteSource &&
-        hasAbsoluteEventRef.current &&
-        typeof (event as DeviceOrientationEventIOS).webkitCompassHeading !== 'number'
-      ) {
+      } else if (hasAbsoluteEventRef.current) {
         // Abaikan event relatif jika sensor absolut sudah aktif
         return
       }
 
-      const iosEvent = event as DeviceOrientationEventIOS
-      let rawHeading: number | null = null
-
-      if (typeof iosEvent.webkitCompassHeading === 'number' && !Number.isNaN(iosEvent.webkitCompassHeading)) {
-        const screenAngle =
-          typeof window !== 'undefined' && window.screen?.orientation?.angle
-            ? window.screen.orientation.angle
-            : 0
-        rawHeading = (iosEvent.webkitCompassHeading + screenAngle + 360) % 360
-      } else if (event.alpha !== null) {
-        // Gunakan sumber absolut jika tersedia; jika perangkat hanya mengirim deviceorientation standar,
-        // tetap proses agar kompas selalu merespon pergerakan HP.
-        rawHeading = computeTiltCompensatedHeading(
-          event.alpha,
-          event.beta ?? 0,
-          event.gamma ?? 0,
-        )
-      }
-
-      if (rawHeading === null) return
-
-      // Penghalusan melingkar (circular exponential smoothing) agar jarum stabil tidak gemetar
-      if (smoothedHeadingRef.current === null) {
-        smoothedHeadingRef.current = rawHeading
-      } else {
-        const prev = smoothedHeadingRef.current
-        const diff = ((rawHeading - prev + 540) % 360) - 180
-        // Jika perubahan sangat kecil (< 0.5°), perhalus lebih kuat; jika besar, respons lebih cepat
-        const factor = Math.abs(diff) > 25 ? 0.45 : 0.22
-        smoothedHeadingRef.current = (prev + diff * factor + 360) % 360
-      }
-
-      // Batasi pembaruan React state maksimal ~25fps (setiap 40ms) agar UI tetap ringan dan bebas kedip
       const now = performance.now()
+
+      // Deteksi gangguan magnetik (osilasi berlawanan arah > 20° berulang dalam 800ms)
+      let magneticJitterDetected = false
+      if (lastRawHeadingRef.current !== null) {
+        const rawDelta = ((rawHeading - lastRawHeadingRef.current + 540) % 360) - 180
+        if (Math.abs(rawDelta) > 20) {
+          const filtered = recentDeltasRef.current.filter((item) => now - item.time < 800)
+          filtered.push({ delta: rawDelta, time: now })
+          recentDeltasRef.current = filtered
+
+          let signReversals = 0
+          for (let i = 1; i < filtered.length; i++) {
+            if (filtered[i].delta * filtered[i - 1].delta < 0) {
+              signReversals += 1
+            }
+          }
+          magneticJitterDetected = signReversals >= 2
+        }
+      }
+      lastRawHeadingRef.current = rawHeading
+
+      smoothedHeadingRef.current = smoothCircularHeading(
+        smoothedHeadingRef.current,
+        rawHeading,
+      )
+
+      // Batasi pembaruan React state maksimal ~25fps (setiap 40ms) agar UI tetap ringan
       if (now - lastEmitTimeRef.current < 40) return
       lastEmitTimeRef.current = now
 
@@ -144,12 +239,25 @@ export function useQiblaCompass() {
       const beta = Math.round(event.beta ?? 0)
       const gamma = Math.round(event.gamma ?? 0)
 
+      const iosNeedsCal =
+        iosAccuracy !== null && (iosAccuracy < 0 || iosAccuracy > 25)
+      const needsCalibration = iosNeedsCal || magneticJitterDetected
+      const accuracySource: CompassAccuracySource = isAbsolute ? 'absolute' : 'relative'
+      const accuracyStatus: CompassAccuracyStatus = needsCalibration
+        ? 'needs_calibration'
+        : isAbsolute
+          ? 'accurate'
+          : 'approximate'
+
       setCompass((prev) => {
         if (
           prev.hasSensor &&
           prev.heading === roundedHeading &&
           prev.verticalTilt === beta &&
-          prev.horizontalTilt === gamma
+          prev.horizontalTilt === gamma &&
+          prev.accuracySource === accuracySource &&
+          prev.needsCalibration === needsCalibration &&
+          prev.accuracyStatus === accuracyStatus
         ) {
           return prev
         }
@@ -160,6 +268,9 @@ export function useQiblaCompass() {
           horizontalTilt: gamma,
           hasSensor: true,
           permissionState: 'granted',
+          accuracySource,
+          needsCalibration,
+          accuracyStatus,
         }
       })
     },
@@ -214,7 +325,6 @@ export function useQiblaCompass() {
     if (typeof window === 'undefined') return
 
     if (!requiresIOSPermission) {
-      // Android / non-iOS: langsung aktifkan otomatis kedua listener (prioritas absolut)
       window.addEventListener(
         'deviceorientationabsolute',
         handleAbsoluteOrientation as EventListener,
@@ -222,8 +332,6 @@ export function useQiblaCompass() {
       )
       window.addEventListener('deviceorientation', handleStandardOrientation, true)
     } else {
-      // iOS 13+: Safari mewajibkan gestur pengguna untuk requestPermission.
-      // Aktifkan otomatis pada sentuhan pertama di mana saja di layar.
       const onFirstInteraction = () => {
         void requestSensorPermission()
       }

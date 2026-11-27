@@ -1,13 +1,17 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router'
-import { Check, MapPin, BellOff } from 'lucide-react'
+import { Link, useLocation } from 'react-router'
+import { Check, MapPin, Bell, AlertCircle } from 'lucide-react'
 import { Header } from '../../components/layout/Header'
 import { Card } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
+import { Button } from '../../components/ui/Button'
+import { Switch } from '../../components/ui/Switch'
+import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import { Skeleton } from '../../components/feedback/Skeleton'
 import { ErrorState } from '../../components/feedback/ErrorState'
 import { useSettings } from '../../features/settings/useSettings'
 import { usePrayerTimes } from '../../features/prayer-times/usePrayerTimes'
+import { checkAdzanAvailable } from '../../features/notifications/adzan'
 import {
   FIVE_PRAYERS,
   cleanPrayerTime,
@@ -19,13 +23,113 @@ import {
   unmarkPrayer,
 } from '../../lib/storage'
 import { usePageTitle } from '../../lib/usePageTitle'
-import type { PrayerName } from '../../types'
+import type { PrayerName, ReminderMode } from '../../types'
 
 export function PrayerTimesPage() {
   usePageTitle('Jadwal Sholat')
-  const { settings } = useSettings()
+  const { hash } = useLocation()
+  const { settings, updateSettings } = useSettings()
   const prayerTimesResult = usePrayerTimes(settings.location)
   const { todayData, nextPrayer, status, timezone, refetch } = prayerTimesResult
+
+  const [adzanAvailable, setAdzanAvailable] = useState<boolean | null>(null)
+  const [showPermissionPrompt, setShowPermissionPrompt] = useState(false)
+  const [permissionFeedback, setPermissionFeedback] = useState<string | null>(null)
+
+  useEffect(() => {
+    let ignore = false
+    checkAdzanAvailable().then((available) => {
+      if (!ignore) {
+        setAdzanAvailable(available)
+        if (!available && settings.reminders.mode === 'notification-adzan') {
+          updateSettings({
+            reminders: { ...settings.reminders, mode: 'notification' },
+          })
+        }
+      }
+    })
+    return () => {
+      ignore = true
+    }
+  }, [settings.reminders, updateSettings])
+
+  useEffect(() => {
+    if (hash === '#pengingat') {
+      const el = document.getElementById('pengingat')
+      el?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [hash])
+
+  const handleToggleReminder = (nextEnabled: boolean) => {
+    setPermissionFeedback(null)
+
+    if (!nextEnabled) {
+      setShowPermissionPrompt(false)
+      updateSettings({
+        reminders: { ...settings.reminders, enabled: false },
+      })
+      return
+    }
+
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setPermissionFeedback(
+        'Peramban ini tidak mendukung notifikasi sistem. Anda tetap dapat melihat riwayat pengingat di halaman Notifikasi.',
+      )
+      return
+    }
+
+    if (Notification.permission === 'granted') {
+      setShowPermissionPrompt(false)
+      updateSettings({
+        reminders: { ...settings.reminders, enabled: true },
+      })
+      return
+    }
+
+    if (Notification.permission === 'denied') {
+      setShowPermissionPrompt(false)
+      setPermissionFeedback(
+        'Izin notifikasi diblokir. Aktifkan melalui ikon gembok atau pengaturan situs pada bilah alamat peramban Anda, lalu coba lagi.',
+      )
+      return
+    }
+
+    // Tampilkan penjelasan singkat sebelum meminta izin notifikasi dari aksi pengguna
+    setShowPermissionPrompt(true)
+  }
+
+  const handleRequestNotificationPermission = async () => {
+    try {
+      const result = await Notification.requestPermission()
+      setShowPermissionPrompt(false)
+      if (result === 'granted') {
+        setPermissionFeedback(null)
+        updateSettings({
+          reminders: { ...settings.reminders, enabled: true },
+        })
+      } else {
+        setPermissionFeedback(
+          'Izin notifikasi tidak diberikan. Untuk mengaktifkannya nanti, buka pengaturan izin situs di peramban Anda.',
+        )
+        updateSettings({
+          reminders: { ...settings.reminders, enabled: false },
+        })
+      }
+    } catch {
+      setShowPermissionPrompt(false)
+      setPermissionFeedback('Gagal meminta izin notifikasi dari peramban.')
+    }
+  }
+
+  const handleModeChange = (nextMode: string) => {
+    if (nextMode === 'notification-adzan' && !adzanAvailable) return
+    updateSettings({
+      reminders: {
+        ...settings.reminders,
+        mode: nextMode as ReminderMode,
+      },
+    })
+  }
 
   // Hari dan tanggal sekarang
   const [currentDate] = useState(() => new Date())
@@ -238,29 +342,101 @@ export function PrayerTimesPage() {
           </div>
         )}
 
-        {/* Seksi Pengingat Sholat (Fitur Tahap 2) */}
-        <section aria-label="Pengingat Sholat" className="mt-8">
+        {/* Seksi Pengingat Sholat */}
+        <section id="pengingat" aria-label="Pengingat Sholat" className="mt-8 scroll-mt-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-semibold text-text uppercase tracking-wider">
               Pengingat Sholat
             </h2>
-            <Badge variant="default">
-              Segera hadir
-            </Badge>
           </div>
 
-          <Card className="flex items-center gap-3 p-4 opacity-75 bg-surface/50 border-dashed">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-border/40 text-text-muted">
-              <BellOff className="h-5 w-5" />
+          <Card className="p-4 space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary-ink">
+                  <Bell className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <span className="block text-sm font-medium text-text">
+                    Pengingat Waktu Sholat
+                  </span>
+                  <span className="block text-xs text-text-muted">
+                    {settings.reminders.enabled ? 'Aktif saat aplikasi terbuka' : 'Nonaktif'}
+                  </span>
+                </div>
+              </div>
+
+              <Switch
+                id="reminder-switch"
+                label="Aktifkan pengingat waktu sholat"
+                checked={settings.reminders.enabled}
+                onChange={handleToggleReminder}
+              />
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-medium text-text">
-                Notifikasi Waktu Sholat
-              </h3>
-              <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
-                Pengaturan adzan dan pengingat akan aktif di pembaruan berikutnya setelah izin sistem web push dikonfigurasi.
-              </p>
+
+            {showPermissionPrompt && (
+              <div className="rounded-xl border border-primary/25 bg-primary-soft p-3.5 space-y-3">
+                <p className="text-xs leading-relaxed text-text">
+                  QaryApp memerlukan izin notifikasi peramban agar dapat menampilkan pengingat tepat
+                  saat masuk waktu sholat ketika aplikasi sedang terbuka.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowPermissionPrompt(false)}
+                    className="flex-1"
+                  >
+                    Nanti saja
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => void handleRequestNotificationPermission()}
+                    className="flex-1"
+                  >
+                    Izinkan Notifikasi
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {permissionFeedback && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-xl bg-danger-soft p-3 text-xs text-danger"
+              >
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{permissionFeedback}</span>
+              </div>
+            )}
+
+            <div className="space-y-2 pt-2 border-t border-border/60">
+              <span className="block text-xs font-medium text-text">Mode pengingat</span>
+              <SegmentedControl
+                options={[
+                  { value: 'notification', label: 'Notifikasi saja' },
+                  {
+                    value: 'notification-adzan',
+                    label: adzanAvailable ? 'Notifikasi + Adzan' : 'Adzan (tidak tersedia)',
+                  },
+                ]}
+                value={
+                  adzanAvailable === false && settings.reminders.mode === 'notification-adzan'
+                    ? 'notification'
+                    : settings.reminders.mode
+                }
+                onChange={handleModeChange}
+              />
+              {adzanAvailable === false && (
+                <p className="text-xs text-text-muted">
+                  Berkas audio adzan (/audio/adzan.mp3) belum tersedia, sehingga mode adzan dinonaktifkan.
+                </p>
+              )}
             </div>
+
+            <p className="text-xs leading-relaxed text-text-muted">
+              Pengingat hanya berbunyi saat QaryApp sedang terbuka. Untuk pengingat saat aplikasi
+              tertutup, tunggu versi aplikasi Android.
+            </p>
           </Card>
         </section>
       </div>

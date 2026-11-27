@@ -33,7 +33,7 @@ export default function QiblaPage() {
     [userLat, userLng],
   )
 
-  const { heading, verticalTilt, horizontalTilt } = useQiblaCompass()
+  const { heading, verticalTilt, horizontalTilt, accuracyStatus } = useQiblaCompass()
 
   // Selisih antara arah hadap perangkat dan arah kiblat
   // Ketika difference mendekati 0 atau 360, ponsel tepat menghadap kiblat
@@ -224,6 +224,23 @@ export default function QiblaPage() {
           <p className="text-[11px] text-text-muted dark:text-white/50 mt-0.5">
             dari arah Utara Sejati · Jarak: {distanceKm.toLocaleString('id-ID')} km
           </p>
+
+          {accuracyStatus === 'needs_calibration' && (
+            <p
+              role="status"
+              className="mt-2 inline-block rounded-full bg-gold/15 px-3 py-1 text-[11px] font-medium text-gold"
+            >
+              Akurasi sensor rendah — gerakkan ponsel membentuk angka 8
+            </p>
+          )}
+          {accuracyStatus === 'approximate' && (
+            <p
+              role="status"
+              className="mt-2 inline-block rounded-full bg-surface dark:bg-white/10 px-3 py-1 text-[11px] text-text-muted dark:text-white/60"
+            >
+              Menggunakan sensor orientasi relatif
+            </p>
+          )}
         </div>
 
         {/* Indikator Kemiringan (Vertical & Horizontal) */}

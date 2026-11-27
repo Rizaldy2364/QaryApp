@@ -143,19 +143,19 @@ Masalah yang diselesaikan:
 
 - **FR-10.1** Menekan kartu Sholat berikutnya di Beranda membuka Jadwal Sholat: lima waktu (Subuh, Dzuhur, Ashar, Maghrib, Isya) dengan jam dan status masing-masing.
 - **FR-10.2** Pengguna dapat menandai sholat sudah dilaksanakan; aplikasi mencatat jam penandaan dan menampilkan ringkasan jumlah sholat yang dilaksanakan hari itu (data lokal di perangkat).
-- **FR-10.3** Bagian Pengingat berisi saklar aktif/nonaktif dan pilihan Notifikasi saja atau Notifikasi + Adzan. Fungsinya aktif di Fase 2 (butuh PWA atau APK); di MVP web bagian ini ditampilkan sebagai segera hadir atau disembunyikan.
+- **FR-10.3** Bagian Pengingat (`#pengingat`) berisi saklar aktif/nonaktif dan pilihan *Notifikasi saja* atau *Notifikasi + Adzan*. Pengingat dan adzan saat **aplikasi sedang terbuka** sudah aktif di web; pengingat saat **aplikasi tertutup** menunggu versi aplikasi Android (Capacitor) karena keterbatasan web dan privasi lokasi.
 
-### 6.11 Notifikasi (Fase 2)
+### 6.11 Notifikasi (Web: saat aplikasi terbuka; Latar belakang: Fase 2 Android)
 
-- **FR-11.1** Ikon lonceng di Beranda membuka halaman Notifikasi: daftar dikelompokkan Hari ini dan Kemarin (pengingat sholat, dzikir pagi/petang, renungan harian), penanda belum dibaca, dan tautan Tandai semua dibaca.
-- **FR-11.2** Titik penanda pada lonceng menunjukkan ada notifikasi yang belum dibaca.
-- **FR-11.3** Tautan Atur pengingat sholat mengarah ke bagian Pengingat di Jadwal Sholat.
+- **FR-11.1** Ikon lonceng di Beranda membuka halaman Notifikasi (`/notifikasi`): daftar dikelompokkan *Hari ini*, *Kemarin*, dan *Sebelumnya* (waktu sholat, dzikir pagi/petang, renungan harian), penanda belum dibaca, dan tautan *Tandai semua dibaca*.
+- **FR-11.2** Titik penanda merah (`--color-danger`) pada lonceng Beranda muncul bila jumlah notifikasi belum dibaca lebih dari nol.
+- **FR-11.3** Baris *Atur pengingat sholat* mengarah ke bagian Pengingat di Jadwal Sholat (`/jadwal-sholat#pengingat`). Pengingat latar belakang saat aplikasi tertutup menunggu versi Android.
 
-### 6.12 Profil dan Akun (akun: Fase 2)
+### 6.12 Profil dan Akun (akun: Fase 2 — Aktif di Web)
 
-- **FR-12.1** Menu Profil (pojok kanan bottom bar) membuka halaman Profil: untuk tamu menampilkan tombol Masuk dan Daftar serta Pengaturan (tema, ukuran teks Arab, lokasi).
-- **FR-12.2** Setelah masuk: kartu akun (nama, email, status Bookmark tersinkron), Pengaturan, Bagikan aplikasi (tautan web, dan APK setelah tersedia), dan tombol Keluar.
-- **FR-12.3** Di MVP web, tombol Masuk dan Daftar belum aktif; pengguna memakai semua fitur sebagai tamu (lihat aturan login opsional di bagian 13).
+- **FR-12.1** Menu Profil (pojok kanan bottom bar) membuka halaman Profil: untuk tamu menampilkan tombol Masuk dan Daftar aktif menuju `/masuk` dan `/daftar`, serta Pengaturan (tema, ukuran teks Arab, lokasi).
+- **FR-12.2** Setelah masuk: kartu akun (inisial avatar, nama, email, status sinkronisasi awan), Pengaturan, Bagikan aplikasi (tautan web; APK ditambahkan setelah tersedia), tombol Keluar (dengan opsi hapus bookmark/favorit lokal), dan opsi Hapus akun.
+- **FR-12.3** Login bersifat opsional; pengguna tetap dapat memakai seluruh fitur inti sebagai tamu tanpa panggilan ke server akun/sinkronisasi (lihat aturan login opsional di bagian 13).
 
 ## 7. Kebutuhan Non-Fungsional
 
@@ -236,7 +236,7 @@ Detail visual ada di `desain.md`.
 
 Keputusan desain yang menjaga jalur ini tetap mudah: seluruh logika berjalan di client, aset disajikan statis, dan penyimpanan data dipisahkan dalam satu lapisan sehingga mudah diganti.
 
-**Aturan login opsional:** semua fitur, termasuk bookmark, tetap bisa dipakai tanpa login. Login hanya menambah sinkronisasi dan cadangan data antar perangkat. Saat pertama kali login, bookmark lokal digabung ke akun berdasarkan surah dan ayat, tanpa duplikat. Aplikasi menampilkan ajakan ringan (bukan pemblokir) agar pengguna login supaya bookmark aman dari penghapusan data browser.
+**Aturan login opsional:** semua fitur, termasuk bookmark, tetap bisa dipakai tanpa login. Login hanya menambah sinkronisasi dan cadangan data antar perangkat (bookmark, doa favorit, dan posisi baca terakhir; lokasi dan catatan sholat tetap di perangkat). Saat pertama kali login, data lokal dan server digabung berdasarkan kunci (`surah:ayat` untuk bookmark, `doaId` untuk favorit) dengan aturan *updatedAt* terbaru menang dan penanda hapus dihormati. Aplikasi menampilkan ajakan ringan di halaman Tersimpan (bukan pemblokir, dan dapat ditutup selama 14 hari) agar pengguna login supaya bookmark aman dari penghapusan data browser.
 
 ## 14. Risiko dan Mitigasi
 

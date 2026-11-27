@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { SyncProvider } from '../features/sync/SyncProvider'
 import { ThemeProvider } from './theme-provider'
 
 export function AppProviders({ children }: { children: ReactNode }) {
@@ -20,7 +21,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>{children}</ThemeProvider>
+      <ThemeProvider>
+        <SyncProvider>{children}</SyncProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }
