@@ -57,12 +57,19 @@ function QiblaHeaderControls({
         role="radiogroup"
         aria-label="Mode tampilan Kiblat"
         className={cn(
-          'pointer-events-auto flex h-10 w-full max-w-[240px] items-center rounded-full border p-1 transition-colors',
+          'pointer-events-auto relative flex h-10 w-full max-w-[240px] items-center rounded-full border p-1 transition-all duration-300 ease-out',
           floating
             ? 'border-border/80 dark:border-white/15 bg-surface/85 dark:bg-[#0E2019]/85 backdrop-blur-md shadow-lg'
             : 'border-border dark:border-white/10 bg-surface dark:bg-white/10 shadow-sm',
         )}
       >
+        <div
+          aria-hidden="true"
+          className={cn(
+            'absolute top-1 bottom-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-[#E8C568] shadow-sm transition-transform duration-300 ease-out motion-reduce:transition-none',
+            viewMode === 'map' ? 'translate-x-full' : 'translate-x-0',
+          )}
+        />
         {VIEW_MODE_OPTIONS.map((option) => {
           const isSelected = option.value === viewMode
           return (
@@ -73,9 +80,9 @@ function QiblaHeaderControls({
               aria-checked={isSelected}
               onClick={() => onChangeViewMode(option.value)}
               className={cn(
-                'flex flex-1 h-full items-center justify-center rounded-full text-xs transition-colors duration-150 motion-reduce:transition-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                'relative z-10 flex flex-1 h-full items-center justify-center rounded-full text-xs transition-colors duration-200 motion-reduce:transition-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                 isSelected
-                  ? 'bg-[#E8C568] text-[#1A1C1A] font-semibold shadow-sm'
+                  ? 'text-[#1A1C1A] font-semibold'
                   : 'text-text-muted dark:text-white/70 hover:text-text dark:hover:text-white',
               )}
             >
@@ -111,6 +118,12 @@ export default function QiblaPage() {
   )
 
   const [viewMode, setViewMode] = useState<QiblaViewMode>('compass')
+  const [hasOpenedMap, setHasOpenedMap] = useState(false)
+
+  const handleChangeViewMode = (mode: QiblaViewMode) => {
+    if (mode === 'map') setHasOpenedMap(true)
+    setViewMode(mode)
+  }
 
   const {
     heading,
@@ -137,54 +150,74 @@ export default function QiblaPage() {
   }
   const compassRotation = -rotState.cumulative
 
-  if (viewMode === 'map') {
-    return (
-      <div className="relative w-full flex-1 h-dvh min-h-[540px] overflow-hidden bg-bg text-text">
-        <Suspense
-          fallback={
-            <div className="absolute inset-0 flex items-center justify-center bg-bg text-xs text-text-muted">
-              Memuat peta Kiblat...
-            </div>
-          }
-        >
-          <QiblaMap
-            userLat={userLat}
-            userLng={userLng}
-            locationName={locationName}
-            qiblaAngle={qiblaAngle}
-            distanceKm={distanceKm}
-            heading={heading}
-            hasSensor={hasSensor}
-            accuracySource={accuracySource}
-          />
-        </Suspense>
-
-        {/* Kontrol Atas Mengambang (Glassmorphism) */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] flex flex-col items-center px-4 pt-3 sm:pt-4">
-          <QiblaHeaderControls
-            locationName={locationName}
-            viewMode={viewMode}
-            onChangeViewMode={setViewMode}
-            floating
-          />
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="w-full flex-1 flex flex-col justify-between overflow-x-hidden min-h-[calc(100vh-4rem)] lg:min-h-screen bg-bg dark:bg-gradient-to-b dark:from-[#112920] dark:via-[#0E2019] dark:to-[#0E1A14] text-text transition-colors pb-32 lg:pb-10">
-      {/* Konten Utama */}
-      <main className="mx-auto w-full max-w-md px-4 pt-3 sm:pt-4 flex flex-col items-center">
-        <div className="mb-4 w-full">
-          <QiblaHeaderControls
-            locationName={locationName}
-            viewMode={viewMode}
-            onChangeViewMode={setViewMode}
-          />
+    <div
+      className={cn(
+        'relative w-full flex-1 flex flex-col bg-bg dark:bg-gradient-to-b dark:from-[#112920] dark:via-[#0E2019] dark:to-[#0E1A14] text-text transition-colors duration-300',
+        viewMode === 'map'
+          ? 'fixed inset-0 z-20 lg:static lg:z-auto lg:h-dvh overflow-hidden'
+          : 'overflow-x-hidden min-h-[calc(100vh-4rem)] lg:min-h-screen pb-32 lg:pb-10',
+      )}
+    >
+      {/* Layer Mode Peta (di-mount saat pertama dibuka agar transisi selanjutnya instan & smooth) */}
+      {hasOpenedMap && (
+        <div
+          aria-hidden={viewMode !== 'map'}
+          className={cn(
+            'fixed inset-0 lg:absolute transition-all duration-300 ease-out motion-reduce:transition-none',
+            viewMode === 'map'
+              ? 'z-10 opacity-100 scale-100 pointer-events-auto'
+              : 'z-0 opacity-0 scale-[1.02] pointer-events-none',
+          )}
+        >
+          <Suspense
+            fallback={
+              <div className="absolute inset-0 flex items-center justify-center bg-bg text-xs text-text-muted">
+                Memuat peta Kiblat...
+              </div>
+            }
+          >
+            <QiblaMap
+              userLat={userLat}
+              userLng={userLng}
+              locationName={locationName}
+              qiblaAngle={qiblaAngle}
+              distanceKm={distanceKm}
+              heading={heading}
+              hasSensor={hasSensor}
+              accuracySource={accuracySource}
+            />
+          </Suspense>
         </div>
+      )}
 
-        <>
+      {/* Header & Switcher Terpadu */}
+      <div
+        className={cn(
+          'transition-all duration-300 ease-out',
+          viewMode === 'map'
+            ? 'pointer-events-none absolute inset-x-0 top-0 z-[500] flex flex-col items-center px-4 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-4'
+            : 'relative z-30 mx-auto w-full max-w-md px-4 pt-3 sm:pt-4 mb-4',
+        )}
+      >
+        <QiblaHeaderControls
+          locationName={locationName}
+          viewMode={viewMode}
+          onChangeViewMode={handleChangeViewMode}
+          floating={viewMode === 'map'}
+        />
+      </div>
+
+      {/* Layer Mode Kompas */}
+      <main
+        aria-hidden={viewMode !== 'compass'}
+        className={cn(
+          'mx-auto w-full max-w-md px-4 flex flex-col items-center transition-all duration-300 ease-out motion-reduce:transition-none',
+          viewMode === 'compass'
+            ? 'relative z-10 opacity-100 scale-100 translate-y-0 pointer-events-auto'
+            : 'absolute inset-x-0 top-28 z-0 opacity-0 scale-[0.97] translate-y-2 pointer-events-none',
+        )}
+      >
 
         {/* DIAL KOMPAS KIBLAT */}
         <div className="relative my-4 flex items-center justify-center">
@@ -278,7 +311,7 @@ export default function QiblaPage() {
               >
                 <div
                   className="mt-2.5 flex flex-col items-center"
-                  style={{ transform: `rotate(-${qiblaAngle}deg)` }}
+                  style={{ transform: `rotate(${-(compassRotation + qiblaAngle)}deg)` }}
                 >
                   <div
                     title={`Arah Ka'bah: ${qiblaAngle}°`}
@@ -357,21 +390,13 @@ export default function QiblaPage() {
                 <AlertTriangle size={16} className="text-gold shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-semibold text-text dark:text-white">
-                    Kompas kurang akurat di browser ini
+                    Browser ini tidak mendukung kompas Kiblat
                   </p>
                   <p className="mt-1 text-[11px] leading-relaxed text-text-muted dark:text-white/75">
-                    Browser ini membatasi akses kompas sehingga arah bisa meleset. Gunakan mode Peta di bawah atau buka lewat browser bawaan HP / browser lain untuk arah yang akurat.
+                    Browser ini membatasi akses sensor kompas sehingga arah tidak dapat dideteksi secara akurat. Silakan buka lewat browser bawaan HP atau browser lain untuk menggunakan fitur kompas.
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setViewMode('map')}
-                className="mt-3.5 w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#E8C568] hover:bg-[#dfb952] px-4 py-2.5 text-xs font-semibold text-[#1A1C1A] shadow-sm transition-colors cursor-pointer"
-              >
-                <MapPin size={14} className="shrink-0" />
-                Lihat arah di peta
-              </button>
             </div>
           )}
         </div>
@@ -396,7 +421,6 @@ export default function QiblaPage() {
             </span>
           </div>
         </div>
-        </>
       </main>
     </div>
   )
