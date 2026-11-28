@@ -3,12 +3,31 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
-// Daftarkan service worker secara native untuk mode production
+// Daftarkan service worker dengan auto-update, cek pembaruan berkala (setiap 1 jam),
+// dan muat ulang otomatis saat service worker baru mengambil alih kontrol.
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  const hadController = Boolean(navigator.serviceWorker.controller)
+  let reloading = false
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController && !reloading) {
+      reloading = true
+      window.location.reload()
+    }
+  })
+
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((error) => {
-      console.warn('[SW Registration Error]', error)
-    })
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => {
+        void registration.update()
+        window.setInterval(() => {
+          void registration.update()
+        }, 60 * 60 * 1000)
+      })
+      .catch((error) => {
+        console.warn('[SW Registration Error]', error)
+      })
   })
 }
 

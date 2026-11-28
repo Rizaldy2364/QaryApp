@@ -19,6 +19,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json}'],
         navigateFallback: '/index.html',
+        clientsClaim: true,
+        skipWaiting: true,
         cleanupOutdatedCaches: true,
         navigateFallbackDenylist: [/^\/dev/, /^\/api/],
         // Pastikan API pihak ketiga dan audio TIDAK dicegat service worker

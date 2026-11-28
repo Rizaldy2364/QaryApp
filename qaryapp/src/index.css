@@ -25,6 +25,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --color-bg: #0E1A14;
   --color-surface: #15251D;
   --color-border: #223529;
@@ -41,6 +42,7 @@
 }
 
 :root {
+  color-scheme: light;
   --art-green: #1F7A4D;
   --art-green-dark: #0B2E20;
   --art-gold: #E0B863;
