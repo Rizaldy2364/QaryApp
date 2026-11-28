@@ -9,6 +9,19 @@ interface DeviceOrientationEventConstructorIOS {
   requestPermission?: () => Promise<'granted' | 'denied'>
 }
 
+interface AbsoluteOrientationSensorInstance extends EventTarget {
+  quaternion?: [number, number, number, number] | Float64Array | Float32Array
+  start: () => void
+  stop: () => void
+}
+
+interface AbsoluteOrientationSensorConstructor {
+  new (options?: {
+    frequency?: number
+    referenceFrame?: 'device' | 'screen'
+  }): AbsoluteOrientationSensorInstance
+}
+
 export type CompassAccuracySource = 'absolute' | 'relative' | 'none'
 export type CompassAccuracyStatus =
   | 'accurate'
@@ -36,11 +49,59 @@ function getScreenOrientationAngle(): number {
 }
 
 /**
+ * Menghitung arah kompas (0 - 360° searah jarum jam dari Utara) dari quaternion
+ * [x, y, z, w] milik AbsoluteOrientationSensor (frame Bumi: X=Timur, Y=Utara, Z=Atas).
+ * Memilih proyeksi horizontal vektor depan ponsel (+Y) atau punggung ponsel (-Z)
+ * yang memiliki panjang proyeksi lebih besar agar stabil baik saat datar maupun tegak.
+ */
+export function computeHeadingFromQuaternion(
+  q: readonly [number, number, number, number],
+  screenAngle = getScreenOrientationAngle(),
+): number {
+  const [x, y, z, w] = q
+
+  // Proyeksi horizontal vektor +Y ponsel (ujung atas) ke bidang Timur (Yx) & Utara (Yy)
+  const Yx = 2 * (x * y - w * z)
+  const Yy = 1 - 2 * (x * x + z * z)
+
+  // Proyeksi horizontal vektor -Z ponsel (punggung/kamera) ke bidang Timur (Zx) & Utara (Zy)
+  const Zx = -2 * (x * z + w * y)
+  const Zy = -2 * (y * z - w * x)
+
+  const lenY = Math.hypot(Yx, Yy)
+  const lenZ = Math.hypot(Zx, Zy)
+
+  const east = lenZ > lenY ? Zx : Yx
+  const north = lenZ > lenY ? Zy : Yy
+
+  if (Math.hypot(east, north) < 1e-6) {
+    return (screenAngle + 360) % 360
+  }
+
+  let rad = Math.atan2(east, north)
+  if (rad < 0) rad += 2 * Math.PI
+  const headingDeg = (rad * 180) / Math.PI
+
+  return (headingDeg + screenAngle + 360) % 360
+}
+
+function extractTiltFromQuaternion(
+  q: readonly [number, number, number, number],
+): { beta: number; gamma: number } {
+  const [x, y, z, w] = q
+  const sinBeta = Math.max(-1, Math.min(1, 2 * (y * z + w * x)))
+  const beta = Math.round((Math.asin(sinBeta) * 180) / Math.PI)
+  const r20 = 2 * (x * z - w * y)
+  const r22 = 1 - 2 * (x * x + y * y)
+  const gamma = Math.round((Math.atan2(-r20, r22) * 180) / Math.PI)
+  return { beta, gamma }
+}
+
+/**
  * Menghitung arah kompas (0 - 360° searah jarum jam dari Utara) berdasarkan
- * konvensi W3C DeviceOrientation (`alpha` berlawanan jarum jam).
- * Untuk posisi ponsel normal (|beta| < 75°), digunakan proyeksi langsung agar
- * tidak terjadi lonjakan sudut di sekitar 45°. Untuk posisi hampir tegak
- * (|beta| >= 75°), digunakan proyeksi sumbu -Z (punggung ponsel).
+ * matriks rotasi 3D penuh Z-X'-Y'' spesifikasi W3C DeviceOrientation.
+ * Memilih proyeksi horizontal +Y atau -Z yang lebih dominan sehingga transisi
+ * dari ponsel datar ke tegak mulus tanpa lonjakan sudut.
  */
 export function computeTiltCompensatedHeading(
   alpha: number,
@@ -48,36 +109,39 @@ export function computeTiltCompensatedHeading(
   gamma: number,
   screenAngle = getScreenOrientationAngle(),
 ): number {
-  let headingDeg: number
+  const deg2rad = Math.PI / 180
+  const _x = beta * deg2rad
+  const _y = gamma * deg2rad
+  const _z = alpha * deg2rad
 
-  if (Math.abs(beta) < 75) {
-    // Konvensi W3C: alpha meningkat berlawanan arah jarum jam dari Utara
+  const cX = Math.cos(_x)
+  const cY = Math.cos(_y)
+  const cZ = Math.cos(_z)
+  const sX = Math.sin(_x)
+  const sY = Math.sin(_y)
+  const sZ = Math.sin(_z)
+
+  // Proyeksi horizontal +Y (ujung atas ponsel)
+  const Yx = -sZ * cX
+  const Yy = cZ * cX
+
+  // Proyeksi horizontal -Z (punggung ponsel)
+  const Zx = -cZ * sY - sZ * sX * cY
+  const Zy = -sZ * sY + cZ * sX * cY
+
+  const lenY = Math.hypot(Yx, Yy)
+  const lenZ = Math.hypot(Zx, Zy)
+
+  const east = lenZ > lenY ? Zx : Yx
+  const north = lenZ > lenY ? Zy : Yy
+
+  let headingDeg: number
+  if (Math.hypot(east, north) < 1e-6) {
     headingDeg = (360 - alpha) % 360
   } else {
-    const deg2rad = Math.PI / 180
-    const _x = beta * deg2rad
-    const _y = gamma * deg2rad
-    const _z = alpha * deg2rad
-
-    const cX = Math.cos(_x)
-    const cY = Math.cos(_y)
-    const cZ = Math.cos(_z)
-    const sX = Math.sin(_x)
-    const sY = Math.sin(_y)
-    const sZ = Math.sin(_z)
-
-    // Proyeksi sumbu -Z (punggung ponsel) ke bidang horizontal Timur (Vx) & Utara (Vy)
-    const Vx = -cZ * sY - sZ * sX * cY
-    const Vy = -sZ * sY + cZ * sX * cY
-
-    if (Math.abs(Vx) < 1e-6 && Math.abs(Vy) < 1e-6) {
-      headingDeg = (360 - alpha) % 360
-    } else {
-      let rad = Math.atan2(Vx, Vy)
-      if (rad < 0) rad += 2 * Math.PI
-      headingDeg = (rad * 180) / Math.PI
-    }
-    void cX
+    let rad = Math.atan2(east, north)
+    if (rad < 0) rad += 2 * Math.PI
+    headingDeg = (rad * 180) / Math.PI
   }
 
   return (headingDeg + screenAngle + 360) % 360
@@ -183,27 +247,20 @@ export function useQiblaCompass() {
 
   const smoothedHeadingRef = useRef<number | null>(null)
   const hasAbsoluteEventRef = useRef(false)
+  const hasGenericSensorRef = useRef(false)
   const lastEmitTimeRef = useRef(0)
   // Pelacak osilasi cepat untuk mendeteksi gangguan magnetik pada Android/browser non-iOS
   const recentDeltasRef = useRef<Array<{ delta: number; time: number }>>([])
   const lastRawHeadingRef = useRef<number | null>(null)
 
-  const processOrientationEvent = useCallback(
-    (event: DeviceOrientationEvent, isAbsoluteListener: boolean) => {
-      const { rawHeading, isAbsolute, iosAccuracy } = extractHeadingFromEvent(
-        event,
-        isAbsoluteListener,
-      )
-
-      if (rawHeading === null) return
-
-      if (isAbsolute) {
-        hasAbsoluteEventRef.current = true
-      } else if (hasAbsoluteEventRef.current) {
-        // Abaikan event relatif jika sensor absolut sudah aktif
-        return
-      }
-
+  const emitHeadingSample = useCallback(
+    (
+      rawHeading: number,
+      beta: number,
+      gamma: number,
+      isAbsolute: boolean,
+      iosAccuracy: number | null,
+    ) => {
       const now = performance.now()
 
       // Deteksi gangguan magnetik (osilasi berlawanan arah > 20° berulang dalam 800ms)
@@ -236,8 +293,6 @@ export function useQiblaCompass() {
       lastEmitTimeRef.current = now
 
       const roundedHeading = Math.round(smoothedHeadingRef.current) % 360
-      const beta = Math.round(event.beta ?? 0)
-      const gamma = Math.round(event.gamma ?? 0)
 
       const iosNeedsCal =
         iosAccuracy !== null && (iosAccuracy < 0 || iosAccuracy > 25)
@@ -275,6 +330,35 @@ export function useQiblaCompass() {
       })
     },
     [],
+  )
+
+  const processOrientationEvent = useCallback(
+    (event: DeviceOrientationEvent, isAbsoluteListener: boolean) => {
+      if (hasGenericSensorRef.current) return
+
+      const { rawHeading, isAbsolute, iosAccuracy } = extractHeadingFromEvent(
+        event,
+        isAbsoluteListener,
+      )
+
+      if (rawHeading === null) return
+
+      if (isAbsolute) {
+        hasAbsoluteEventRef.current = true
+      } else if (hasAbsoluteEventRef.current) {
+        // Abaikan event relatif jika sensor absolut sudah aktif
+        return
+      }
+
+      emitHeadingSample(
+        rawHeading,
+        Math.round(event.beta ?? 0),
+        Math.round(event.gamma ?? 0),
+        isAbsolute,
+        iosAccuracy,
+      )
+    },
+    [emitHeadingSample],
   )
 
   const handleAbsoluteOrientation = useCallback(
@@ -325,33 +409,89 @@ export function useQiblaCompass() {
     if (typeof window === 'undefined') return
 
     if (!requiresIOSPermission) {
-      window.addEventListener(
-        'deviceorientationabsolute',
-        handleAbsoluteOrientation as EventListener,
-        true,
-      )
-      window.addEventListener('deviceorientation', handleStandardOrientation, true)
-    } else {
-      const onFirstInteraction = () => {
-        void requestSensorPermission()
+      let sensor: AbsoluteOrientationSensorInstance | null = null
+      const SensorCtor = (
+        window as unknown as {
+          AbsoluteOrientationSensor?: AbsoluteOrientationSensorConstructor
+        }
+      ).AbsoluteOrientationSensor
+
+      const attachDeviceOrientationFallback = () => {
+        window.addEventListener(
+          'deviceorientationabsolute',
+          handleAbsoluteOrientation as EventListener,
+          true,
+        )
+        window.addEventListener('deviceorientation', handleStandardOrientation, true)
       }
-      window.addEventListener('pointerdown', onFirstInteraction, { once: true, passive: true })
+
+      const handleSensorReading = () => {
+        const q = sensor?.quaternion
+        if (!q || q.length < 4) return
+        const tuple: [number, number, number, number] = [q[0], q[1], q[2], q[3]]
+        if (tuple.some((n) => !Number.isFinite(n))) return
+
+        hasGenericSensorRef.current = true
+        const rawHeading = computeHeadingFromQuaternion(tuple)
+        const { beta, gamma } = extractTiltFromQuaternion(tuple)
+        emitHeadingSample(rawHeading, beta, gamma, true, null)
+      }
+
+      const handleSensorError = () => {
+        hasGenericSensorRef.current = false
+        try {
+          sensor?.stop()
+        } catch {
+          // Abaikan galat stop sensor
+        }
+        sensor = null
+      }
+
+      // Pasang fallback listener lebih dulu; akan otomatis diabaikan begitu
+      // AbsoluteOrientationSensor mulai mengirim pembacaan quaternion yang valid.
+      attachDeviceOrientationFallback()
+
+      if (typeof SensorCtor === 'function') {
+        try {
+          sensor = new SensorCtor({ frequency: 30, referenceFrame: 'device' })
+          sensor.addEventListener('reading', handleSensorReading)
+          sensor.addEventListener('error', handleSensorError)
+          sensor.start()
+        } catch {
+          handleSensorError()
+        }
+      }
+
       return () => {
-        window.removeEventListener('pointerdown', onFirstInteraction)
+        if (sensor) {
+          sensor.removeEventListener('reading', handleSensorReading)
+          sensor.removeEventListener('error', handleSensorError)
+          try {
+            sensor.stop()
+          } catch {
+            // Abaikan galat stop sensor
+          }
+        }
+        window.removeEventListener(
+          'deviceorientationabsolute',
+          handleAbsoluteOrientation as EventListener,
+          true,
+        )
         window.removeEventListener('deviceorientation', handleStandardOrientation, true)
       }
     }
 
+    const onFirstInteraction = () => {
+      void requestSensorPermission()
+    }
+    window.addEventListener('pointerdown', onFirstInteraction, { once: true, passive: true })
     return () => {
-      window.removeEventListener(
-        'deviceorientationabsolute',
-        handleAbsoluteOrientation as EventListener,
-        true,
-      )
+      window.removeEventListener('pointerdown', onFirstInteraction)
       window.removeEventListener('deviceorientation', handleStandardOrientation, true)
     }
   }, [
     requiresIOSPermission,
+    emitHeadingSample,
     handleAbsoluteOrientation,
     handleStandardOrientation,
     requestSensorPermission,
