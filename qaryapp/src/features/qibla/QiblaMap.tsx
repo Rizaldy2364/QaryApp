@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { LocateFixed, Compass, Plus, Minus, Ruler, Route, AlertCircle } from 'lucide-react'
+import { LocateFixed, Compass, Plus, Minus, Ruler, Route, AlertCircle, AlertTriangle } from 'lucide-react'
 import { KAABA_COORDS, computeGeodesicPoints } from './lib/qibla'
 import type { CompassAccuracySource } from './useQiblaCompass'
 
@@ -53,12 +53,40 @@ export default function QiblaMap({
   const userMarkerRef = useRef<L.Marker | null>(null)
   const lastAlignedRef = useRef<boolean | null>(null)
   const [showGuide, setShowGuide] = useState(false)
+  const [cardOffsetY, setCardOffsetY] = useState(0)
+  const [isDraggingCard, setIsDraggingCard] = useState(false)
+  const dragStateRef = useRef<{ startY: number; startOffset: number } | null>(null)
 
   useEffect(() => {
     if (!showGuide) return
     const timer = window.setTimeout(() => setShowGuide(false), 4500)
     return () => window.clearTimeout(timer)
   }, [showGuide])
+
+  const handleCardPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragStateRef.current = { startY: e.clientY, startOffset: cardOffsetY }
+    setIsDraggingCard(true)
+  }
+
+  const handleCardPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStateRef.current) return
+    const deltaY = e.clientY - dragStateRef.current.startY
+    const maxUp = typeof window !== 'undefined' ? -Math.max(180, window.innerHeight - 360) : -240
+    const nextOffset = Math.max(maxUp, Math.min(0, dragStateRef.current.startOffset + deltaY))
+    setCardOffsetY(nextOffset)
+  }
+
+  const handleCardPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStateRef.current) return
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+    dragStateRef.current = null
+    setIsDraggingCard(false)
+  }
 
   const isLiveAbsolute =
     accuracySource === 'absolute' && hasSensor && heading !== null && Number.isFinite(heading)
@@ -213,23 +241,40 @@ export default function QiblaMap({
         </button>
       </div>
 
-      {/* Kartu Ringkas Mengambang di Bawah (Aman di atas BottomBar) */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-24 lg:bottom-6 z-[450] flex flex-col items-center px-4 gap-2">
+      {/* Kartu Ringkas Mengambang di Bawah (Aman di atas BottomBar & dapat digeser vertikal) */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] lg:bottom-6 z-[450] flex flex-col items-center px-4">
         <div
-          role="status"
-          aria-live="polite"
-          aria-hidden={!showGuide}
-          className={`w-full max-w-md rounded-xl bg-[#1A1C1A]/95 dark:bg-[#0E2019]/95 backdrop-blur-md border border-white/15 px-3.5 py-2.5 text-[11px] leading-relaxed text-white/90 shadow-lg transition-all duration-300 ease-out motion-reduce:transition-none ${
-            showGuide
-              ? 'pointer-events-auto opacity-100 translate-y-0 scale-100'
-              : 'pointer-events-none opacity-0 translate-y-2 scale-95'
+          style={{ transform: `translateY(${cardOffsetY}px)` }}
+          className={`w-full max-w-md flex flex-col items-center gap-2 ${
+            isDraggingCard ? '' : 'transition-transform duration-150 ease-out'
           }`}
         >
-          Sejajarkan posisi Anda dengan garis emas menuju Ka&apos;bah berdasarkan bangunan atau jalan di sekitar.
-        </div>
+          <div
+            role="status"
+            aria-live="polite"
+            aria-hidden={!showGuide}
+            className={`w-full rounded-xl bg-[#1A1C1A]/95 dark:bg-[#0E2019]/95 backdrop-blur-md border border-white/15 px-3.5 py-2.5 text-[11px] leading-relaxed text-white/90 shadow-lg transition-all duration-300 ease-out motion-reduce:transition-none ${
+              showGuide
+                ? 'pointer-events-auto opacity-100 translate-y-0 scale-100'
+                : 'pointer-events-none opacity-0 translate-y-2 scale-95'
+            }`}
+          >
+            Sejajarkan posisi Anda dengan garis emas menuju Ka&apos;bah berdasarkan bangunan atau jalan di sekitar.
+          </div>
 
-        <div className="pointer-events-auto w-full max-w-md rounded-2xl bg-surface/90 dark:bg-[#1A1C1A]/90 backdrop-blur-md border border-border/80 dark:border-white/10 shadow-xl px-4 py-3">
-          {/* Baris Atas: Label Arah Kiblat + Ikon Info & Pill Jarak */}
+          <div
+            onPointerDown={handleCardPointerDown}
+            onPointerMove={handleCardPointerMove}
+            onPointerUp={handleCardPointerEnd}
+            onPointerCancel={handleCardPointerEnd}
+            className="pointer-events-auto w-full touch-none select-none rounded-2xl bg-surface/90 dark:bg-[#1A1C1A]/90 backdrop-blur-md border border-border/80 dark:border-white/10 shadow-xl px-4 pt-2.5 pb-3.5 cursor-grab active:cursor-grabbing"
+          >
+            {/* Pegangan geser vertikal */}
+            <div
+              className="mx-auto mb-2 h-1 w-9 rounded-full bg-text-muted/30 dark:bg-white/25"
+              aria-hidden="true"
+            />
+            {/* Baris Atas: Label Arah Kiblat + Ikon Info & Pill Jarak */}
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5 text-xs font-medium text-text-muted dark:text-white/75">
               <Compass size={14} className="shrink-0" />
@@ -267,6 +312,18 @@ export default function QiblaMap({
             dari Utara Sejati
           </p>
 
+          {!isLiveAbsolute && (
+            <div
+              role="status"
+              className="mt-2.5 flex items-start gap-2 rounded-xl border border-gold/25 bg-gold/10 px-3 py-2 text-[11px] leading-relaxed text-text-muted dark:text-white/80"
+            >
+              <AlertTriangle size={14} className="text-gold shrink-0 mt-0.5" />
+              <span>
+                Browser ini tidak mendukung kompas arah hadap. Panah dikunci ke garis Kiblat — buka di browser bawaan HP agar panah bergerak.
+              </span>
+            </div>
+          )}
+
           {/* Dua Tombol Aksi Sejajar */}
           <div className="mt-3 grid grid-cols-2 gap-2.5">
             <button
@@ -285,6 +342,7 @@ export default function QiblaMap({
               <Route size={15} className="shrink-0" />
               Garis ke Ka&apos;bah
             </button>
+          </div>
           </div>
         </div>
       </div>
