@@ -7,6 +7,17 @@
       "includeFiles": "server/**"
     }
   },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Permissions-Policy",
+          "value": "magnetometer=(self), accelerometer=(self), gyroscope=(self)"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",
