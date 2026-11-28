@@ -19,14 +19,19 @@ describe('computeHeadingFromQuaternion', () => {
     expect(Math.round(computeHeadingFromQuaternion([0, 0, s45, s45], 0))).toBe(270)
   })
 
-  it('tetap akurat saat ponsel diangkat miring atau tegak (menggunakan proyeksi -Z)', () => {
+  it('tetap akurat saat ponsel diangkat tegak menghadap Utara, Timur, Selatan, dan Barat (proyeksi -Z)', () => {
     const s45 = Math.SQRT1_2
     // Ponsel diangkat tegak 90° menghadap Utara (rotasi +90° sumbu X)
     expect(Math.round(computeHeadingFromQuaternion([s45, 0, 0, s45], 0))).toBe(0)
 
-    // Ponsel diangkat tegak 90° lalu diputar menghadap Timur: q = Rz(-90°) * Rx(+90°)
-    const half = 0.5
-    expect(Math.round(computeHeadingFromQuaternion([half, half, -half, half], 0))).toBe(90)
+    // Ponsel diangkat tegak 90° lalu diputar menghadap Timur: Rz(-90°) * Rx(+90°)
+    expect(Math.round(computeHeadingFromQuaternion([0.5, -0.5, -0.5, 0.5], 0))).toBe(90)
+
+    // Ponsel diangkat tegak 90° lalu diputar menghadap Selatan: Rz(180°) * Rx(+90°)
+    expect(Math.round(computeHeadingFromQuaternion([0, s45, s45, 0], 0))).toBe(180)
+
+    // Ponsel diangkat tegak 90° lalu diputar menghadap Barat: Rz(+90°) * Rx(+90°)
+    expect(Math.round(computeHeadingFromQuaternion([0.5, 0.5, 0.5, 0.5], 0))).toBe(270)
   })
 })
 

@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { FastifyInstance } from '../server/node_modules/fastify/fastify.js'
@@ -8,6 +8,9 @@ import type { AppConfig } from '../server/src/config.js'
 declare const __dirname: string | undefined
 
 interface VercelRequest extends IncomingMessage {
+  method?: string
+  url?: string
+  headers: IncomingHttpHeaders
   body?: unknown
 }
 
