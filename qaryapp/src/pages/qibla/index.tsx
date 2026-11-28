@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { MapPin, ChevronDown } from 'lucide-react'
 import { useSettings } from '../../features/settings/useSettings'
@@ -9,7 +9,17 @@ import {
   calculateDistanceToKaaba,
 } from '../../features/qibla/lib/qibla'
 import { Header } from '../../components/layout/Header'
+import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import { cn } from '../../lib/utils'
+
+const QiblaMap = lazy(() => import('../../features/qibla/QiblaMap'))
+
+type QiblaViewMode = 'compass' | 'map'
+
+const VIEW_MODE_OPTIONS: Array<{ value: QiblaViewMode; label: string }> = [
+  { value: 'compass', label: 'Kompas' },
+  { value: 'map', label: 'Peta' },
+]
 
 export default function QiblaPage() {
   usePageTitle('Kiblat')
@@ -33,7 +43,15 @@ export default function QiblaPage() {
     [userLat, userLng],
   )
 
-  const { heading, verticalTilt, horizontalTilt, accuracyStatus } = useQiblaCompass()
+  const [viewMode, setViewMode] = useState<QiblaViewMode>('compass')
+
+  const {
+    heading,
+    verticalTilt,
+    horizontalTilt,
+    accuracyStatus,
+    accuracySource,
+  } = useQiblaCompass()
 
   // Selisih antara arah hadap perangkat dan arah kiblat
   // Ketika difference mendekati 0 atau 360, ponsel tepat menghadap kiblat
@@ -59,7 +77,7 @@ export default function QiblaPage() {
       {/* Konten Utama */}
       <main className="mx-auto w-full max-w-md px-4 pt-4 flex flex-col items-center">
         {/* Pemilih Lokasi di Tengah Atas */}
-        <div className="mb-6">
+        <div className="mb-4">
           <Link
             to="/lokasi"
             aria-label="Ubah lokasi saat ini"
@@ -70,6 +88,34 @@ export default function QiblaPage() {
             <ChevronDown size={14} className="text-text-muted dark:text-white/60 shrink-0" />
           </Link>
         </div>
+
+        {/* Switcher Mode Kompas / Peta */}
+        <div className="w-full max-w-[240px] mb-4">
+          <SegmentedControl
+            options={VIEW_MODE_OPTIONS}
+            value={viewMode}
+            onChange={setViewMode}
+          />
+        </div>
+
+        {viewMode === 'map' ? (
+          <Suspense
+            fallback={
+              <div className="w-full h-[340px] sm:h-[380px] rounded-2xl border border-border dark:border-white/10 bg-surface animate-pulse flex items-center justify-center text-xs text-text-muted">
+                Memuat peta Kiblat...
+              </div>
+            }
+          >
+            <QiblaMap
+              userLat={userLat}
+              userLng={userLng}
+              locationName={locationName}
+              qiblaAngle={qiblaAngle}
+              distanceKm={distanceKm}
+            />
+          </Suspense>
+        ) : (
+          <>
 
         {/* DIAL KOMPAS KIBLAT */}
         <div className="relative my-4 flex items-center justify-center">
@@ -241,6 +287,21 @@ export default function QiblaPage() {
               Menggunakan sensor orientasi relatif
             </p>
           )}
+          {accuracySource === 'relative' && (
+            <>
+              <p className="mt-1.5 max-w-[280px] mx-auto text-[11px] leading-relaxed text-text-muted dark:text-white/60">
+                Arah kompas mungkin kurang akurat di browser ini. Coba kalibrasi dengan gerakan angka 8 atau buka lewat browser lain.
+              </p>
+              <button
+                type="button"
+                onClick={() => setViewMode('map')}
+                className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-primary/15 dark:bg-primary/25 px-3.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 dark:hover:bg-primary/35 transition-colors cursor-pointer"
+              >
+                <MapPin size={13} />
+                Lihat Arah di Peta
+              </button>
+            </>
+          )}
         </div>
 
         {/* Indikator Kemiringan (Vertical & Horizontal) */}
@@ -263,6 +324,8 @@ export default function QiblaPage() {
             </span>
           </div>
         </div>
+          </>
+        )}
       </main>
     </div>
   )

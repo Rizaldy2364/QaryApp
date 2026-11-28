@@ -1,10 +1,14 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
+import { act, renderHook } from '@testing-library/react'
 import {
   computeHeadingFromQuaternion,
   computeTiltCompensatedHeading,
   extractHeadingFromEvent,
   smoothCircularHeading,
+  useQiblaCompass,
 } from '../useQiblaCompass'
+import { KAABA_COORDS, computeGeodesicPoints } from '../lib/qibla'
 
 describe('computeHeadingFromQuaternion', () => {
   it('menghitung arah Utara, Timur, Selatan, dan Barat saat ponsel datar', () => {
@@ -120,5 +124,78 @@ describe('smoothCircularHeading', () => {
   it('merespons cepat saat perubahan sudut besar (> 45°)', () => {
     const smoothed = smoothCircularHeading(0, 90)
     expect(smoothed).toBeGreaterThan(60)
+  })
+})
+
+describe('useQiblaCompass auto-upgrade & anti-overwrite', () => {
+  it('langsung upgrade dari relatif ke absolut dan mengabaikan event relatif berikutnya', () => {
+    const { result, unmount } = renderHook(() => useQiblaCompass())
+
+    // 1. Event relatif masuk lebih dulu -> status sementara relative
+    act(() => {
+      const relEvent = new Event('deviceorientation') as DeviceOrientationEvent & {
+        alpha: number
+        beta: number
+        gamma: number
+        absolute: boolean
+      }
+      relEvent.alpha = 180
+      relEvent.beta = 0
+      relEvent.gamma = 0
+      relEvent.absolute = false
+      window.dispatchEvent(relEvent)
+    })
+
+    expect(result.current.accuracySource).toBe('relative')
+    expect(result.current.heading).toBe(180)
+
+    // 2. Event deviceorientationabsolute masuk langsung setelahnya (<40ms) -> wajib upgrade
+    act(() => {
+      const absEvent = new Event('deviceorientationabsolute') as DeviceOrientationEvent & {
+        alpha: number
+        beta: number
+        gamma: number
+        absolute: boolean
+      }
+      absEvent.alpha = 270 // heading kompas = 90°
+      absEvent.beta = 0
+      absEvent.gamma = 0
+      absEvent.absolute = true
+      window.dispatchEvent(absEvent)
+    })
+
+    expect(result.current.accuracySource).toBe('absolute')
+    expect(result.current.heading).toBe(90)
+
+    // 3. Event relatif berikutnya harus diabaikan (tidak menimpa heading maupun source)
+    act(() => {
+      const relEvent2 = new Event('deviceorientation') as DeviceOrientationEvent & {
+        alpha: number
+        beta: number
+        gamma: number
+        absolute: boolean
+      }
+      relEvent2.alpha = 0
+      relEvent2.beta = 0
+      relEvent2.gamma = 0
+      relEvent2.absolute = false
+      window.dispatchEvent(relEvent2)
+    })
+
+    expect(result.current.accuracySource).toBe('absolute')
+    expect(result.current.heading).toBe(90)
+
+    unmount()
+  })
+})
+
+describe('computeGeodesicPoints', () => {
+  it('menghasilkan titik awal, kurva great-circle, dan berakhir tepat di koordinat Ka\'bah', () => {
+    const points = computeGeodesicPoints(-6.2088, 106.8456, KAABA_COORDS.latitude, KAABA_COORDS.longitude, 32)
+    expect(points).toHaveLength(33)
+    expect(points[0][0]).toBeCloseTo(-6.2088, 4)
+    expect(points[0][1]).toBeCloseTo(106.8456, 4)
+    expect(points[32][0]).toBeCloseTo(KAABA_COORDS.latitude, 4)
+    expect(points[32][1]).toBeCloseTo(KAABA_COORDS.longitude, 4)
   })
 })
