@@ -33,7 +33,7 @@ export default function QiblaPage() {
     [userLat, userLng],
   )
 
-  const { heading, verticalTilt, horizontalTilt, accuracyStatus, debugInfo } = useQiblaCompass()
+  const { heading, verticalTilt, horizontalTilt, accuracyStatus } = useQiblaCompass()
 
   // Selisih antara arah hadap perangkat dan arah kiblat
   // Ketika difference mendekati 0 atau 360, ponsel tepat menghadap kiblat
@@ -239,11 +239,6 @@ export default function QiblaPage() {
               className="mt-2 inline-block rounded-full bg-surface dark:bg-white/10 px-3 py-1 text-[11px] text-text-muted dark:text-white/60"
             >
               Menggunakan sensor orientasi relatif
-            </p>
-          )}
-          {debugInfo && (
-            <p className="mt-1 text-[10px] opacity-50 font-mono">
-              {debugInfo}
             </p>
           )}
         </div>

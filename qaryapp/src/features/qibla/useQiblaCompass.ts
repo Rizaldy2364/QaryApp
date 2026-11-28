@@ -39,7 +39,6 @@ export interface CompassState {
   accuracySource: CompassAccuracySource
   needsCalibration: boolean
   accuracyStatus: CompassAccuracyStatus
-  debugInfo?: string
 }
 
 function getScreenOrientationAngle(): number {
@@ -249,8 +248,6 @@ export function useQiblaCompass() {
   const smoothedHeadingRef = useRef<number | null>(null)
   const hasAbsoluteEventRef = useRef(false)
   const hasGenericSensorRef = useRef(false)
-  const aosStatusRef = useRef<string>('AOS: init')
-  const sensorDiagRef = useRef<string>('')
   const lastEmitTimeRef = useRef(0)
   // Pelacak osilasi cepat untuk mendeteksi gangguan magnetik pada Android/browser non-iOS
   const recentDeltasRef = useRef<Array<{ delta: number; time: number }>>([])
@@ -263,7 +260,6 @@ export function useQiblaCompass() {
       gamma: number,
       isAbsolute: boolean,
       iosAccuracy: number | null,
-      sourceLabel: string,
     ) => {
       const now = performance.now()
 
@@ -316,8 +312,7 @@ export function useQiblaCompass() {
           prev.horizontalTilt === gamma &&
           prev.accuracySource === accuracySource &&
           prev.needsCalibration === needsCalibration &&
-          prev.accuracyStatus === accuracyStatus &&
-          prev.debugInfo === sourceLabel
+          prev.accuracyStatus === accuracyStatus
         ) {
           return prev
         }
@@ -331,7 +326,6 @@ export function useQiblaCompass() {
           accuracySource,
           needsCalibration,
           accuracyStatus,
-          debugInfo: sourceLabel,
         }
       })
     },
@@ -356,21 +350,12 @@ export function useQiblaCompass() {
         return
       }
 
-      const diagSuffix = sensorDiagRef.current ? ` (${sensorDiagRef.current})` : ''
-      const sourceLabel =
-        typeof (event as DeviceOrientationEventIOS).webkitCompassHeading === 'number'
-          ? 'iOS: webkitCompassHeading'
-          : isAbsolute
-            ? `${aosStatusRef.current}${diagSuffix} | fallback: ${isAbsoluteListener ? 'deviceorientationabsolute' : 'deviceorientation(abs)'}`
-            : `${aosStatusRef.current}${diagSuffix} | fallback: deviceorientation(rel)`
-
       emitHeadingSample(
         rawHeading,
         Math.round(event.beta ?? 0),
         Math.round(event.gamma ?? 0),
         isAbsolute,
         iosAccuracy,
-        sourceLabel,
       )
     },
     [emitHeadingSample],
@@ -440,12 +425,6 @@ export function useQiblaCompass() {
         window.addEventListener('deviceorientation', handleStandardOrientation, true)
       }
 
-      const handleSensorActivate = () => {
-        if (!hasGenericSensorRef.current) {
-          aosStatusRef.current = 'AOS: active'
-        }
-      }
-
       const handleSensorReading = () => {
         const q = sensor?.quaternion
         if (!q || q.length < 4) return
@@ -453,52 +432,19 @@ export function useQiblaCompass() {
         if (tuple.some((n) => !Number.isFinite(n))) return
 
         hasGenericSensorRef.current = true
-        aosStatusRef.current = 'AOS: ok'
         const rawHeading = computeHeadingFromQuaternion(tuple)
         const { beta, gamma } = extractTiltFromQuaternion(tuple)
-        emitHeadingSample(rawHeading, beta, gamma, true, null, 'AOS: ok')
+        emitHeadingSample(rawHeading, beta, gamma, true, null)
       }
 
-      const handleSensorError = (err?: unknown) => {
+      const handleSensorError = () => {
         hasGenericSensorRef.current = false
-        const errObj = err as { error?: { name?: string }; name?: string; message?: string } | undefined
-        const errName = errObj?.error?.name || errObj?.name || errObj?.message || 'Error'
-        aosStatusRef.current = `AOS err: ${errName}`
-        const diagSuffix = sensorDiagRef.current ? ` (${sensorDiagRef.current})` : ''
-        setCompass((prev) => ({
-          ...prev,
-          debugInfo: `${aosStatusRef.current}${diagSuffix}`,
-        }))
         try {
           sensor?.stop()
         } catch {
           // Abaikan galat stop sensor
         }
         sensor = null
-      }
-
-      // Diagnostik non-blocking untuk menampilkan status izin sensor & dukungan deviceorientationabsolute
-      const hasAbsEvt = 'ondeviceorientationabsolute' in window
-      sensorDiagRef.current = `absEvt=${hasAbsEvt}`
-      if (typeof navigator !== 'undefined' && navigator.permissions?.query) {
-        void (async () => {
-          const checkPerm = async (name: string) => {
-            try {
-              const res = await navigator.permissions.query({
-                name: name as PermissionName,
-              })
-              return res.state
-            } catch {
-              return 'na'
-            }
-          }
-          const [m, a, g] = await Promise.all([
-            checkPerm('magnetometer'),
-            checkPerm('accelerometer'),
-            checkPerm('gyroscope'),
-          ])
-          sensorDiagRef.current = `perm:m=${m},a=${a},g=${g} | absEvt=${hasAbsEvt}`
-        })()
       }
 
       // Pasang fallback listener lebih dulu; akan otomatis diabaikan begitu
@@ -508,20 +454,16 @@ export function useQiblaCompass() {
       if (typeof SensorCtor === 'function') {
         try {
           sensor = new SensorCtor({ frequency: 30, referenceFrame: 'device' })
-          sensor.addEventListener('activate', handleSensorActivate)
           sensor.addEventListener('reading', handleSensorReading)
           sensor.addEventListener('error', handleSensorError)
           sensor.start()
-        } catch (err) {
-          handleSensorError(err)
+        } catch {
+          handleSensorError()
         }
-      } else {
-        aosStatusRef.current = 'AOS: unsupported'
       }
 
       return () => {
         if (sensor) {
-          sensor.removeEventListener('activate', handleSensorActivate)
           sensor.removeEventListener('reading', handleSensorReading)
           sensor.removeEventListener('error', handleSensorError)
           try {
