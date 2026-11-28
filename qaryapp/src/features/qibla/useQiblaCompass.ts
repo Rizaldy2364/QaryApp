@@ -39,6 +39,7 @@ export interface CompassState {
   accuracySource: CompassAccuracySource
   needsCalibration: boolean
   accuracyStatus: CompassAccuracyStatus
+  debugInfo?: string
 }
 
 function getScreenOrientationAngle(): number {
@@ -248,6 +249,7 @@ export function useQiblaCompass() {
   const smoothedHeadingRef = useRef<number | null>(null)
   const hasAbsoluteEventRef = useRef(false)
   const hasGenericSensorRef = useRef(false)
+  const aosStatusRef = useRef<string>('AOS: init')
   const lastEmitTimeRef = useRef(0)
   // Pelacak osilasi cepat untuk mendeteksi gangguan magnetik pada Android/browser non-iOS
   const recentDeltasRef = useRef<Array<{ delta: number; time: number }>>([])
@@ -260,6 +262,7 @@ export function useQiblaCompass() {
       gamma: number,
       isAbsolute: boolean,
       iosAccuracy: number | null,
+      sourceLabel: string,
     ) => {
       const now = performance.now()
 
@@ -312,7 +315,8 @@ export function useQiblaCompass() {
           prev.horizontalTilt === gamma &&
           prev.accuracySource === accuracySource &&
           prev.needsCalibration === needsCalibration &&
-          prev.accuracyStatus === accuracyStatus
+          prev.accuracyStatus === accuracyStatus &&
+          prev.debugInfo === sourceLabel
         ) {
           return prev
         }
@@ -326,6 +330,7 @@ export function useQiblaCompass() {
           accuracySource,
           needsCalibration,
           accuracyStatus,
+          debugInfo: sourceLabel,
         }
       })
     },
@@ -350,12 +355,20 @@ export function useQiblaCompass() {
         return
       }
 
+      const sourceLabel =
+        typeof (event as DeviceOrientationEventIOS).webkitCompassHeading === 'number'
+          ? 'iOS: webkitCompassHeading'
+          : isAbsolute
+            ? `${aosStatusRef.current} | fallback: ${isAbsoluteListener ? 'deviceorientationabsolute' : 'deviceorientation(abs)'}`
+            : `${aosStatusRef.current} | fallback: deviceorientation(rel)`
+
       emitHeadingSample(
         rawHeading,
         Math.round(event.beta ?? 0),
         Math.round(event.gamma ?? 0),
         isAbsolute,
         iosAccuracy,
+        sourceLabel,
       )
     },
     [emitHeadingSample],
@@ -432,13 +445,21 @@ export function useQiblaCompass() {
         if (tuple.some((n) => !Number.isFinite(n))) return
 
         hasGenericSensorRef.current = true
+        aosStatusRef.current = 'AOS: ok'
         const rawHeading = computeHeadingFromQuaternion(tuple)
         const { beta, gamma } = extractTiltFromQuaternion(tuple)
-        emitHeadingSample(rawHeading, beta, gamma, true, null)
+        emitHeadingSample(rawHeading, beta, gamma, true, null, 'AOS: ok')
       }
 
-      const handleSensorError = () => {
+      const handleSensorError = (err?: unknown) => {
         hasGenericSensorRef.current = false
+        const errObj = err as { error?: { name?: string }; name?: string; message?: string } | undefined
+        const errName = errObj?.error?.name || errObj?.name || errObj?.message || 'Error'
+        aosStatusRef.current = `AOS err: ${errName}`
+        setCompass((prev) => ({
+          ...prev,
+          debugInfo: aosStatusRef.current,
+        }))
         try {
           sensor?.stop()
         } catch {
@@ -457,9 +478,11 @@ export function useQiblaCompass() {
           sensor.addEventListener('reading', handleSensorReading)
           sensor.addEventListener('error', handleSensorError)
           sensor.start()
-        } catch {
-          handleSensorError()
+        } catch (err) {
+          handleSensorError(err)
         }
+      } else {
+        aosStatusRef.current = 'AOS: unsupported'
       }
 
       return () => {
