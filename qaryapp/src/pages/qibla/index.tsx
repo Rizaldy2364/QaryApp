@@ -1,6 +1,6 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { Link } from 'react-router'
-import { MapPin, ChevronDown } from 'lucide-react'
+import { MapPin, ChevronDown, AlertTriangle } from 'lucide-react'
 import { useSettings } from '../../features/settings/useSettings'
 import { usePageTitle } from '../../lib/usePageTitle'
 import { useQiblaCompass } from '../../features/qibla/useQiblaCompass'
@@ -8,8 +8,6 @@ import {
   calculateQiblaDirection,
   calculateDistanceToKaaba,
 } from '../../features/qibla/lib/qibla'
-import { Header } from '../../components/layout/Header'
-import { SegmentedControl } from '../../components/ui/SegmentedControl'
 import { cn } from '../../lib/utils'
 
 const QiblaMap = lazy(() => import('../../features/qibla/QiblaMap'))
@@ -20,6 +18,75 @@ const VIEW_MODE_OPTIONS: Array<{ value: QiblaViewMode; label: string }> = [
   { value: 'compass', label: 'Kompas' },
   { value: 'map', label: 'Peta' },
 ]
+
+function QiblaHeaderControls({
+  locationName,
+  viewMode,
+  onChangeViewMode,
+  floating = false,
+}: {
+  locationName: string
+  viewMode: QiblaViewMode
+  onChangeViewMode: (mode: QiblaViewMode) => void
+  floating?: boolean
+}) {
+  return (
+    <div className="flex flex-col items-center gap-2.5 w-full">
+      <div
+        className={cn(
+          'flex flex-col items-center',
+          floating &&
+            'pointer-events-auto rounded-2xl bg-surface/85 dark:bg-[#0E2019]/85 backdrop-blur-md border border-border/80 dark:border-white/15 px-4 py-2 shadow-lg',
+        )}
+      >
+        <h1 className="text-base font-semibold tracking-tight text-text dark:text-white">
+          Kiblat
+        </h1>
+        <Link
+          to="/lokasi"
+          aria-label="Ubah lokasi saat ini"
+          className="mt-0.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-text-muted dark:text-white/80 hover:bg-surface/80 dark:hover:bg-white/15 hover:text-text dark:hover:text-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        >
+          <MapPin size={14} className="text-gold shrink-0" />
+          <span className="truncate max-w-[220px]">{locationName}</span>
+          <ChevronDown size={14} className="text-text-muted dark:text-white/60 shrink-0" />
+        </Link>
+      </div>
+
+      <div
+        role="radiogroup"
+        aria-label="Mode tampilan Kiblat"
+        className={cn(
+          'pointer-events-auto flex h-10 w-full max-w-[240px] items-center rounded-full border p-1 transition-colors',
+          floating
+            ? 'border-border/80 dark:border-white/15 bg-surface/85 dark:bg-[#0E2019]/85 backdrop-blur-md shadow-lg'
+            : 'border-border dark:border-white/10 bg-surface dark:bg-white/10 shadow-sm',
+        )}
+      >
+        {VIEW_MODE_OPTIONS.map((option) => {
+          const isSelected = option.value === viewMode
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={isSelected}
+              onClick={() => onChangeViewMode(option.value)}
+              className={cn(
+                'flex flex-1 h-full items-center justify-center rounded-full text-xs transition-colors duration-150 motion-reduce:transition-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                isSelected
+                  ? 'bg-[#E8C568] text-[#1A1C1A] font-semibold shadow-sm'
+                  : 'text-text-muted dark:text-white/70 hover:text-text dark:hover:text-white',
+              )}
+            >
+              {option.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export default function QiblaPage() {
   usePageTitle('Kiblat')
@@ -49,6 +116,7 @@ export default function QiblaPage() {
     heading,
     verticalTilt,
     horizontalTilt,
+    hasSensor,
     accuracyStatus,
     accuracySource,
   } = useQiblaCompass()
@@ -69,53 +137,54 @@ export default function QiblaPage() {
   }
   const compassRotation = -rotState.cumulative
 
-  return (
-    <div className="w-full flex-1 flex flex-col justify-between overflow-x-hidden min-h-[calc(100vh-4rem)] lg:min-h-screen bg-bg dark:bg-gradient-to-b dark:from-[#112920] dark:via-[#0E2019] dark:to-[#0E1A14] text-text transition-colors pb-24 lg:pb-8">
-      {/* Header Halaman di tengah tanpa icon panah, menyatu dengan background */}
-      <Header title="Kiblat" showBack={false} className="bg-transparent" />
+  if (viewMode === 'map') {
+    return (
+      <div className="relative w-full flex-1 h-dvh min-h-[540px] overflow-hidden bg-bg text-text">
+        <Suspense
+          fallback={
+            <div className="absolute inset-0 flex items-center justify-center bg-bg text-xs text-text-muted">
+              Memuat peta Kiblat...
+            </div>
+          }
+        >
+          <QiblaMap
+            userLat={userLat}
+            userLng={userLng}
+            locationName={locationName}
+            qiblaAngle={qiblaAngle}
+            distanceKm={distanceKm}
+            heading={heading}
+            hasSensor={hasSensor}
+            accuracySource={accuracySource}
+          />
+        </Suspense>
 
-      {/* Konten Utama */}
-      <main className="mx-auto w-full max-w-md px-4 pt-4 flex flex-col items-center">
-        {/* Pemilih Lokasi di Tengah Atas */}
-        <div className="mb-4">
-          <Link
-            to="/lokasi"
-            aria-label="Ubah lokasi saat ini"
-            className="inline-flex items-center gap-2 rounded-full bg-surface dark:bg-white/10 px-4 py-1.5 text-xs font-medium text-text dark:text-white/90 border border-border dark:border-white/10 hover:bg-surface/80 dark:hover:bg-white/15 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shadow-sm"
-          >
-            <MapPin size={14} className="text-gold shrink-0" />
-            <span className="truncate max-w-[200px]">{locationName}</span>
-            <ChevronDown size={14} className="text-text-muted dark:text-white/60 shrink-0" />
-          </Link>
+        {/* Kontrol Atas Mengambang (Glassmorphism) */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-[500] flex flex-col items-center px-4 pt-3 sm:pt-4">
+          <QiblaHeaderControls
+            locationName={locationName}
+            viewMode={viewMode}
+            onChangeViewMode={setViewMode}
+            floating
+          />
         </div>
+      </div>
+    )
+  }
 
-        {/* Switcher Mode Kompas / Peta */}
-        <div className="w-full max-w-[240px] mb-4">
-          <SegmentedControl
-            options={VIEW_MODE_OPTIONS}
-            value={viewMode}
-            onChange={setViewMode}
+  return (
+    <div className="w-full flex-1 flex flex-col justify-between overflow-x-hidden min-h-[calc(100vh-4rem)] lg:min-h-screen bg-bg dark:bg-gradient-to-b dark:from-[#112920] dark:via-[#0E2019] dark:to-[#0E1A14] text-text transition-colors pb-32 lg:pb-10">
+      {/* Konten Utama */}
+      <main className="mx-auto w-full max-w-md px-4 pt-3 sm:pt-4 flex flex-col items-center">
+        <div className="mb-4 w-full">
+          <QiblaHeaderControls
+            locationName={locationName}
+            viewMode={viewMode}
+            onChangeViewMode={setViewMode}
           />
         </div>
 
-        {viewMode === 'map' ? (
-          <Suspense
-            fallback={
-              <div className="w-full h-[340px] sm:h-[380px] rounded-2xl border border-border dark:border-white/10 bg-surface animate-pulse flex items-center justify-center text-xs text-text-muted">
-                Memuat peta Kiblat...
-              </div>
-            }
-          >
-            <QiblaMap
-              userLat={userLat}
-              userLng={userLng}
-              locationName={locationName}
-              qiblaAngle={qiblaAngle}
-              distanceKm={distanceKm}
-            />
-          </Suspense>
-        ) : (
-          <>
+        <>
 
         {/* DIAL KOMPAS KIBLAT */}
         <div className="relative my-4 flex items-center justify-center">
@@ -251,81 +320,83 @@ export default function QiblaPage() {
           </div>
         </div>
 
-        {/* Instruksi & Derajat Kiblat */}
-        <div className="text-center mt-3 mb-6">
-          <p className="text-xs text-text-muted dark:text-white/70 max-w-[280px] mx-auto leading-relaxed">
-            {isAligned ? (
-              <span className="text-primary font-semibold text-sm">
-                ✓ Posisi ponsel Anda sudah tepat menghadap Kiblat!
-              </span>
-            ) : (
-              "Putar ponsel hingga gambar Ka'bah berada di puncak kompas"
-            )}
-          </p>
+        {/* Derajat Kiblat & Peringatan Sensor */}
+        <div className="w-full text-center mt-2">
+          {isAligned && (
+            <p className="mb-1 text-primary font-semibold text-sm">
+              ✓ Posisi ponsel Anda sudah tepat menghadap Kiblat!
+            </p>
+          )}
 
           {/* Nilai Sudut Kiblat Besar Warna Emas */}
-          <div className="mt-2 text-3xl font-extrabold tracking-tight text-gold">
-            {qiblaAngle}°
+          <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gold tabular-nums">
+            {qiblaAngle.toLocaleString('id-ID', {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            })}°
           </div>
-          <p className="text-[11px] text-text-muted dark:text-white/50 mt-0.5">
-            dari arah Utara Sejati · Jarak: {distanceKm.toLocaleString('id-ID')} km
+          <p className="text-xs text-text-muted dark:text-white/60 mt-1">
+            dari Utara Sejati · {distanceKm.toLocaleString('id-ID')} km
           </p>
 
           {accuracyStatus === 'needs_calibration' && (
             <p
               role="status"
-              className="mt-2 inline-block rounded-full bg-gold/15 px-3 py-1 text-[11px] font-medium text-gold"
+              className="mt-3 inline-block rounded-full bg-gold/15 px-3 py-1 text-[11px] font-medium text-gold"
             >
               Akurasi sensor rendah — gerakkan ponsel membentuk angka 8
             </p>
           )}
-          {accuracyStatus === 'approximate' && (
-            <p
+
+          {(accuracySource === 'relative' || accuracyStatus === 'unavailable') && (
+            <div
               role="status"
-              className="mt-2 inline-block rounded-full bg-surface dark:bg-white/10 px-3 py-1 text-[11px] text-text-muted dark:text-white/60"
+              className="mt-4 w-full rounded-2xl border border-gold/30 bg-gold/10 p-4 text-left"
             >
-              Menggunakan sensor orientasi relatif
-            </p>
-          )}
-          {accuracySource === 'relative' && (
-            <>
-              <p className="mt-1.5 max-w-[280px] mx-auto text-[11px] leading-relaxed text-text-muted dark:text-white/60">
-                Arah kompas mungkin kurang akurat di browser ini. Coba kalibrasi dengan gerakan angka 8 atau buka lewat browser lain.
-              </p>
+              <div className="flex items-start gap-2.5">
+                <AlertTriangle size={16} className="text-gold shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-semibold text-text dark:text-white">
+                    Kompas kurang akurat di browser ini
+                  </p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-text-muted dark:text-white/75">
+                    Browser ini membatasi akses kompas sehingga arah bisa meleset. Gunakan mode Peta di bawah atau buka lewat browser bawaan HP / browser lain untuk arah yang akurat.
+                  </p>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setViewMode('map')}
-                className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-primary/15 dark:bg-primary/25 px-3.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 dark:hover:bg-primary/35 transition-colors cursor-pointer"
+                className="mt-3.5 w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#E8C568] hover:bg-[#dfb952] px-4 py-2.5 text-xs font-semibold text-[#1A1C1A] shadow-sm transition-colors cursor-pointer"
               >
-                <MapPin size={13} />
-                Lihat Arah di Peta
+                <MapPin size={14} className="shrink-0" />
+                Lihat arah di peta
               </button>
-            </>
+            </div>
           )}
         </div>
 
-        {/* Indikator Kemiringan (Vertical & Horizontal) */}
-        <div className="w-full flex items-center justify-between px-6 mt-6 mb-4">
-          <div className="flex flex-col items-start">
-            <span className="text-xs font-normal text-text-muted dark:text-white/60 tracking-wide mb-1">
-              Vertical
+        {/* Indikator Kemiringan (Vertikal & Horizontal) */}
+        <div className="w-full grid grid-cols-2 gap-3 mt-4 mb-4">
+          <div className="rounded-2xl border border-border dark:border-white/10 bg-surface dark:bg-white/5 px-4 py-3 flex flex-col items-center justify-center">
+            <span className="text-[11px] font-medium text-text-muted dark:text-white/60">
+              Vertikal
             </span>
-            <span className="text-2xl font-bold text-gold">
+            <span className="mt-0.5 text-2xl font-bold text-gold tabular-nums">
               {Math.abs(verticalTilt)}°
             </span>
           </div>
 
-          <div className="flex flex-col items-end">
-            <span className="text-xs font-normal text-text-muted dark:text-white/60 tracking-wide mb-1">
+          <div className="rounded-2xl border border-border dark:border-white/10 bg-surface dark:bg-white/5 px-4 py-3 flex flex-col items-center justify-center">
+            <span className="text-[11px] font-medium text-text-muted dark:text-white/60">
               Horizontal
             </span>
-            <span className="text-2xl font-bold text-gold">
+            <span className="mt-0.5 text-2xl font-bold text-gold tabular-nums">
               {Math.abs(horizontalTilt)}°
             </span>
           </div>
         </div>
-          </>
-        )}
+        </>
       </main>
     </div>
   )
