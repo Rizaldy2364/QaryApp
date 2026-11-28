@@ -1,8 +1,10 @@
-import { Outlet } from 'react-router'
+import { Outlet, useLocation } from 'react-router'
 import { BottomBar } from './BottomBar'
 import { DesktopSidebar } from './DesktopSidebar'
 
 export function TabLayout() {
+  const location = useLocation()
+
   return (
     <div className="min-h-screen bg-bg text-text flex flex-col lg:flex-row">
       {/* Skip Link untuk aksesibilitas navigasi papan ketik */}
@@ -21,7 +23,12 @@ export function TabLayout() {
         tabIndex={-1}
         className="w-full flex-1 flex flex-col focus:outline-none"
       >
-        <Outlet />
+        <div
+          key={location.pathname}
+          className="w-full flex-1 flex flex-col animate-page-fade"
+        >
+          <Outlet />
+        </div>
       </main>
 
       {/* Navigasi Ponsel & Tablet (< 1024px) */}
