@@ -187,7 +187,18 @@ export function BookmarksPage() {
 
   return (
     <div className="pb-24 lg:pb-8">
-      <Header title="Tersimpan" />
+      {/* Header & Tabs Terpadu (Menyatu dengan background halaman) */}
+      <div className="w-full border-b border-border bg-transparent">
+        <Header title="Tersimpan" showBack={false} />
+        <div className="mx-auto max-w-[720px]">
+          <Tabs
+            tabs={tabsConfig}
+            activeTab={activeTab}
+            onChange={handleTabChange}
+            className="border-b-0 bg-transparent"
+          />
+        </div>
+      </div>
 
       {/* Pesan status pembaca layar (screen reader live region) */}
       <div className="sr-only" role="status" aria-live="polite">
@@ -195,14 +206,7 @@ export function BookmarksPage() {
       </div>
 
       <div className="mx-auto max-w-[720px]">
-        {/* Tabs Bar */}
-        <Tabs
-          tabs={tabsConfig}
-          activeTab={activeTab}
-          onChange={handleTabChange}
-        />
-
-        <div className="p-4">
+        <div key={activeTab} className="p-4 animate-tab-enter">
           {/* TAB 1: AYAT */}
           {activeTab === 'ayat' && (
             <div>

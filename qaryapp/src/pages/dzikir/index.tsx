@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import {
   ArrowLeft,
   ArrowRight,
   Check,
   CheckCircle2,
+  Code2,
   Moon,
+  Repeat2,
   RotateCcw,
   Sun,
 } from 'lucide-react'
@@ -76,6 +78,13 @@ export default function DzikirPage() {
   const [completedIds, setCompletedIds] = useState<(string | number)[]>([])
   const [isSessionFinished, setIsSessionFinished] = useState(false)
   const [liveAnnouncement, setLiveAnnouncement] = useState('')
+  const dzikirCardRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (dzikirCardRef.current) {
+      dzikirCardRef.current.scrollTop = 0
+    }
+  }, [currentIndex, selectedPeriod])
 
   // Sinkronisasi parameter URL saat tab diubah manual
   const handleTabChange = useCallback(
@@ -268,35 +277,37 @@ export default function DzikirPage() {
   }[settings.arabSize]
 
   return (
-    <div className="min-h-screen pb-32">
+    <div className="h-dvh lg:h-screen flex flex-col overflow-hidden pb-20 lg:pb-6">
       {/* Area aria-live untuk pengumuman dinamis penghitung */}
       <div className="sr-only" role="status" aria-live="polite">
         {liveAnnouncement}
       </div>
 
-      <Header title="Dzikir" showBack={false} />
-
-      {/* Tabs Pagi dan Petang */}
-      <div className="w-full">
-        <Tabs
-          tabs={[
-            {
-              id: 'morning',
-              label: 'Dzikir Pagi',
-              icon: <Sun size={18} className="text-gold" />,
-            },
-            {
-              id: 'evening',
-              label: 'Dzikir Petang',
-              icon: <Moon size={18} className="text-primary-ink" />,
-            },
-          ]}
-          activeTab={selectedPeriod}
-          onChange={handleTabChange}
-        />
+      {/* Header & Tabs Pagi/Petang Terpadu (Menyatu dengan background halaman) */}
+      <div className="w-full shrink-0 border-b border-border bg-transparent">
+        <Header title="Dzikir" showBack={false} />
+        <div className="mx-auto max-w-[720px]">
+          <Tabs
+            tabs={[
+              {
+                id: 'morning',
+                label: 'Dzikir Pagi',
+                icon: <Sun size={18} />,
+              },
+              {
+                id: 'evening',
+                label: 'Dzikir Petang',
+                icon: <Moon size={18} />,
+              },
+            ]}
+            activeTab={selectedPeriod}
+            onChange={handleTabChange}
+            className="border-b-0 bg-transparent"
+          />
+        </div>
       </div>
 
-      <main className="mx-auto max-w-[720px] px-4 pt-4">
+      <main className="mx-auto w-full max-w-[720px] flex-1 min-h-0 flex flex-col px-4 pt-3 pb-2">
         {isLoading ? (
           <div className="space-y-4">
             <div className="space-y-2">
@@ -354,24 +365,26 @@ export default function DzikirPage() {
             </div>
           </Card>
         ) : currentDzikir ? (
-          <div className="space-y-4">
+          <div key={selectedPeriod} className="flex-1 min-h-0 flex flex-col gap-3 animate-tab-enter">
             {/* Indikator Progres */}
-            <div className="space-y-1.5">
+            <div className="shrink-0 space-y-2">
               <div className="flex items-center justify-between text-xs text-text-muted">
                 <div className="flex items-center gap-1.5">
-                  {/* TODO: Tombol "Sebelumnya" ini SEMENTARA (belum ada desain resmi) */}
                   <IconButton
                     label="Dzikir sebelumnya"
                     icon={<ArrowLeft size={16} />}
                     disabled={currentIndex === 0}
                     onClick={handlePrev}
-                    className="h-7 w-7 min-h-[44px] min-w-[44px] rounded-lg -ml-1 text-text hover:bg-primary-soft/40 disabled:opacity-30 disabled:pointer-events-none"
+                    className="h-7 w-7 min-h-[40px] min-w-[40px] rounded-lg -ml-2 text-text hover:bg-primary-soft/40 disabled:opacity-30 disabled:pointer-events-none"
                   />
-                  <span className="font-medium text-text">
+                  <span className="text-sm font-semibold text-text">
                     Dzikir {currentIndex + 1} dari {dzikirList.length}
                   </span>
                 </div>
-                <span>Dibaca {currentDzikir.repeatCount} kali</span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-surface px-2.5 py-1 text-[11px] font-medium text-text-muted">
+                  <Repeat2 size={13} className="shrink-0" />
+                  Dibaca {currentDzikir.repeatCount}×
+                </span>
               </div>
               <ProgressBar
                 value={
@@ -383,30 +396,35 @@ export default function DzikirPage() {
               />
             </div>
 
-            {/* Kartu Bacaan Dzikir */}
-            <Card className="p-5">
+            {/* Kartu Bacaan Dzikir (Scroll internal saat teks panjang) */}
+            <div
+              ref={dzikirCardRef}
+              key={currentDzikir.id}
+              className="flex-1 min-h-0 overflow-y-auto overscroll-contain rounded-2xl border border-border/80 bg-surface p-5 shadow-sm animate-tab-enter"
+            >
               {/* Judul Dzikir (Bila ada) */}
               {currentDzikir.title && (
-                <div className="mb-3 text-sm font-semibold text-text">
+                <h2 className="mb-2.5 text-base font-semibold leading-snug text-text">
                   {currentDzikir.title}
-                </div>
+                </h2>
               )}
 
               {/* Penanda dev mode bila belum ditinjau */}
               {import.meta.env.DEV && currentDzikir.reviewStatus === 'unreviewed' && (
-                <div className="mb-3">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-danger/15 text-danger font-medium">
-                    Belum ditinjau (Dev Mode)
+                <div className="mb-4">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/25 bg-gold/15 px-2.5 py-0.5 text-[11px] font-medium text-gold">
+                    <Code2 size={12} className="shrink-0" />
+                    Belum ditinjau · Dev
                   </span>
                 </div>
               )}
 
-              {/* Teks Arab (Karakter persis dari data) */}
+              {/* Teks Arab (Rata tengah, karakter persis dari data) */}
               <div
                 dir="rtl"
                 lang="ar"
                 className={cn(
-                  'w-full text-right font-arab text-text',
+                  'w-full py-2 text-center font-arab text-text',
                   arabSizeClass,
                 )}
               >
@@ -418,14 +436,19 @@ export default function DzikirPage() {
 
               {/* Transliterasi Latin (Bila diaktifkan) */}
               {settings.showTransliteration && currentDzikir.transliteration && (
-                <div className="mb-2 text-sm italic text-primary-ink/90 leading-relaxed">
+                <div className="mb-3 text-sm italic text-primary-ink/90 leading-relaxed">
                   {currentDzikir.transliteration}
                 </div>
               )}
 
-              {/* Terjemahan Bahasa Indonesia (15/26, text-muted) */}
-              <div className="text-[15px] leading-[26px] text-text-muted">
-                {currentDzikir.translation}
+              {/* Terjemahan Bahasa Indonesia */}
+              <div>
+                <div className="mb-1 text-xs font-medium text-text-muted">
+                  Terjemahan
+                </div>
+                <p className="text-sm leading-relaxed text-text/90">
+                  {currentDzikir.translation}
+                </p>
               </div>
 
               {/* Sumber Kecil */}
@@ -434,28 +457,28 @@ export default function DzikirPage() {
                   Sumber: {currentDzikir.source}
                 </div>
               )}
-            </Card>
+            </div>
 
             {/* ==========================================
-                AREA PENGHITUNG (STICKY DI ATAS BOTTOM BAR)
+                AREA PENGHITUNG (TERPIN DI BAWAH KARTU, TANPA KOTAK)
                 Ukuran area sentuh >= 44 px, aman dari menu aktif
                 ========================================== */}
-            <div className="sticky bottom-20 z-20 mx-auto max-w-[720px] rounded-2xl border border-border/80 bg-surface/95 backdrop-blur-md p-4 shadow-lg">
+            <div className="shrink-0 w-full px-2 py-1.5">
               <div className="flex items-center justify-between">
-                {/* Tombol Kiri: Atur Ulang (Bulat 48 px) */}
+                {/* Tombol Kiri: Atur Ulang (Bulat 44 px) */}
                 <div className="flex flex-col items-center">
                   <button
                     type="button"
                     aria-label={`Atur ulang hitungan dzikir ke-${currentIndex + 1}`}
                     onClick={handleResetCurrent}
-                    className="flex h-12 w-12 min-h-[48px] min-w-[48px] items-center justify-center rounded-full border border-border bg-surface text-text transition-colors hover:bg-primary-soft/30 active:bg-primary-soft/50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    className="flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-border bg-surface text-text transition-colors hover:bg-primary-soft/30 active:bg-primary-soft/50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
-                    <RotateCcw size={20} />
+                    <RotateCcw size={18} />
                   </button>
-                  <span className="mt-1 text-xs text-text-muted">Atur ulang</span>
+                  <span className="mt-1 text-[11px] text-text-muted">Atur ulang</span>
                 </div>
 
-                {/* Tombol Tengah: Penghitung Utama (Bulat 96 px) */}
+                {/* Tombol Tengah: Penghitung Utama (Bulat 72 px) */}
                 <div className="flex flex-col items-center">
                   <button
                     type="button"
@@ -467,7 +490,7 @@ export default function DzikirPage() {
                     onClick={handleCounterTap}
                     disabled={isCurrentCompleted}
                     className={cn(
-                      'flex h-24 w-24 min-h-[96px] min-w-[96px] flex-col items-center justify-center rounded-full transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 shadow-md',
+                      'flex h-[72px] w-[72px] min-h-[72px] min-w-[72px] flex-col items-center justify-center rounded-full transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 shadow-md',
                       isCurrentCompleted
                         ? 'bg-primary-soft text-primary-ink cursor-default'
                         : 'bg-primary text-primary-fg cursor-pointer hover:opacity-95',
@@ -475,15 +498,15 @@ export default function DzikirPage() {
                   >
                     {isCurrentCompleted ? (
                       <>
-                        <Check size={30} strokeWidth={2.5} />
-                        <span className="text-xs font-semibold mt-1">Selesai</span>
+                        <Check size={24} strokeWidth={2.5} />
+                        <span className="text-[11px] font-semibold mt-0.5">Selesai</span>
                       </>
                     ) : (
                       <>
-                        <span className="text-3xl font-bold tabular-nums leading-none">
+                        <span className="text-2xl font-bold tabular-nums leading-none">
                           {currentCount}
                         </span>
-                        <span className="text-xs font-normal opacity-90 mt-1">
+                        <span className="text-[11px] font-normal opacity-90 mt-0.5">
                           dari {currentDzikir.repeatCount}
                         </span>
                       </>
@@ -491,22 +514,22 @@ export default function DzikirPage() {
                   </button>
                 </div>
 
-                {/* Tombol Kanan: Berikutnya (Bulat 48 px) */}
+                {/* Tombol Kanan: Berikutnya (Bulat 44 px) */}
                 <div className="flex flex-col items-center">
                   <button
                     type="button"
                     aria-label="Pindah ke dzikir berikutnya"
                     onClick={handleNext}
                     className={cn(
-                      'flex h-12 w-12 min-h-[48px] min-w-[48px] items-center justify-center rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                      'flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                       isCurrentCompleted
                         ? 'bg-primary text-primary-fg shadow-sm hover:opacity-95'
                         : 'border border-border bg-surface text-text hover:bg-primary-soft/30 active:bg-primary-soft/50',
                     )}
                   >
-                    <ArrowRight size={20} />
+                    <ArrowRight size={18} />
                   </button>
-                  <span className="mt-1 text-xs text-text-muted">Berikutnya</span>
+                  <span className="mt-1 text-[11px] text-text-muted">Berikutnya</span>
                 </div>
               </div>
             </div>

@@ -15,12 +15,17 @@ export interface TabsProps {
 }
 
 export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
+  const activeIndex = Math.max(
+    0,
+    tabs.findIndex((tab) => tab.id === activeTab),
+  )
+
   return (
     <div
       role="tablist"
       aria-orientation="horizontal"
       className={cn(
-        'flex h-11 w-full border-b border-border bg-surface',
+        'relative flex h-11 w-full border-b border-border bg-surface',
         className,
       )}
     >
@@ -35,7 +40,7 @@ export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
             tabIndex={isActive ? 0 : -1}
             onClick={() => onChange(tab.id)}
             className={cn(
-              'relative flex flex-1 items-center justify-center text-sm transition-colors duration-150 motion-reduce:transition-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              'relative flex flex-1 items-center justify-center text-sm transition-colors duration-200 motion-reduce:transition-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
               isActive
                 ? 'font-semibold text-primary'
                 : 'text-text-muted hover:text-text',
@@ -45,12 +50,19 @@ export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
               <span className="mr-2 inline-flex shrink-0">{tab.icon}</span>
             )}
             {tab.label}
-            {isActive && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-            )}
           </button>
         )
       })}
+      {tabs.length > 0 && (
+        <span
+          aria-hidden="true"
+          style={{
+            width: `${100 / tabs.length}%`,
+            transform: `translateX(${activeIndex * 100}%)`,
+          }}
+          className="pointer-events-none absolute bottom-0 left-0 h-0.5 bg-primary transition-transform duration-300 ease-out motion-reduce:transition-none"
+        />
+      )}
     </div>
   )
 }
