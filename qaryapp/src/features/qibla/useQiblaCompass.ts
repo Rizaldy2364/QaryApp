@@ -238,7 +238,9 @@ export function useQiblaCompass() {
     verticalTilt: 0,
     horizontalTilt: 0,
     hasSensor: false,
-    isSupported: typeof window !== 'undefined' && 'DeviceOrientationEvent' in window,
+    isSupported:
+      typeof window !== 'undefined' &&
+      ('DeviceOrientationEvent' in window || 'AbsoluteOrientationSensor' in window),
     permissionState: requiresIOSPermission ? 'prompt' : 'granted',
     accuracySource: 'none',
     needsCalibration: false,
@@ -246,8 +248,9 @@ export function useQiblaCompass() {
   })
 
   const smoothedHeadingRef = useRef<number | null>(null)
-  const hasAbsoluteEventRef = useRef(false)
+  const hasAbsoluteSourceRef = useRef(false)
   const hasGenericSensorRef = useRef(false)
+  const currentAccuracySourceRef = useRef<CompassAccuracySource>('none')
   const lastEmitTimeRef = useRef(0)
   // Pelacak osilasi cepat untuk mendeteksi gangguan magnetik pada Android/browser non-iOS
   const recentDeltasRef = useRef<Array<{ delta: number; time: number }>>([])
@@ -262,6 +265,17 @@ export function useQiblaCompass() {
       iosAccuracy: number | null,
     ) => {
       const now = performance.now()
+      const accuracySource: CompassAccuracySource = isAbsolute ? 'absolute' : 'relative'
+      const isUpgradingToAbsolute =
+        isAbsolute && currentAccuracySourceRef.current !== 'absolute'
+
+      // Reset filter & riwayat osilasi saat upgrade dari relatif ke absolut agar
+      // offset sensor relatif tidak terbawa ke heading absolut.
+      if (isUpgradingToAbsolute && currentAccuracySourceRef.current === 'relative') {
+        smoothedHeadingRef.current = null
+        lastRawHeadingRef.current = null
+        recentDeltasRef.current = []
+      }
 
       // Deteksi gangguan magnetik (osilasi berlawanan arah > 20° berulang dalam 800ms)
       let magneticJitterDetected = false
@@ -288,16 +302,17 @@ export function useQiblaCompass() {
         rawHeading,
       )
 
-      // Batasi pembaruan React state maksimal ~25fps (setiap 40ms) agar UI tetap ringan
-      if (now - lastEmitTimeRef.current < 40) return
+      // Batasi pembaruan React state maksimal ~25fps (setiap 40ms) agar UI tetap ringan,
+      // namun jangan pernah men-throttle sampel upgrade pertama ke sensor absolut.
+      if (!isUpgradingToAbsolute && now - lastEmitTimeRef.current < 40) return
       lastEmitTimeRef.current = now
+      currentAccuracySourceRef.current = accuracySource
 
       const roundedHeading = Math.round(smoothedHeadingRef.current) % 360
 
       const iosNeedsCal =
         iosAccuracy !== null && (iosAccuracy < 0 || iosAccuracy > 25)
       const needsCalibration = iosNeedsCal || magneticJitterDetected
-      const accuracySource: CompassAccuracySource = isAbsolute ? 'absolute' : 'relative'
       const accuracyStatus: CompassAccuracyStatus = needsCalibration
         ? 'needs_calibration'
         : isAbsolute
@@ -344,8 +359,8 @@ export function useQiblaCompass() {
       if (rawHeading === null) return
 
       if (isAbsolute) {
-        hasAbsoluteEventRef.current = true
-      } else if (hasAbsoluteEventRef.current) {
+        hasAbsoluteSourceRef.current = true
+      } else if (hasAbsoluteSourceRef.current) {
         // Abaikan event relatif jika sensor absolut sudah aktif
         return
       }
@@ -432,6 +447,7 @@ export function useQiblaCompass() {
         if (tuple.some((n) => !Number.isFinite(n))) return
 
         hasGenericSensorRef.current = true
+        hasAbsoluteSourceRef.current = true
         const rawHeading = computeHeadingFromQuaternion(tuple)
         const { beta, gamma } = extractTiltFromQuaternion(tuple)
         emitHeadingSample(rawHeading, beta, gamma, true, null)
