@@ -182,24 +182,24 @@ export default function QiblaPage() {
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Lingkaran Pusat Kompas */}
-              <div className="flex h-32 w-32 sm:h-36 sm:w-36 flex-col items-center justify-center rounded-full bg-surface dark:bg-gradient-to-b dark:from-[#142D23] dark:to-[#0A1713] border-2 border-border dark:border-white/15 shadow-inner transition-colors">
-                {/* Teks Utara / Selatan kecil */}
-                <div className="flex items-center justify-between w-full px-5 text-[10px] text-text-muted dark:text-white/50">
-                  <span>W</span>
-                  <span className="text-[#E8806F] font-bold">N</span>
-                  <span>E</span>
-                </div>
+            {/* Lingkaran Pusat Kompas (Tetap tegak di tengah saat piringan berputar) */}
+            <div className="absolute z-10 pointer-events-none flex h-32 w-32 sm:h-36 sm:w-36 flex-col items-center justify-center rounded-full bg-surface dark:bg-gradient-to-b dark:from-[#142D23] dark:to-[#0A1713] border-2 border-border dark:border-white/15 shadow-inner transition-colors">
+              {/* Teks Utara / Selatan kecil */}
+              <div className="flex items-center justify-between w-full px-5 text-[10px] text-text-muted dark:text-white/50">
+                <span>W</span>
+                <span className="text-[#E8806F] font-bold">N</span>
+                <span>E</span>
+              </div>
 
-                {/* Heading Terukur Derajat */}
-                <div className="text-2xl sm:text-3xl font-bold tracking-tight text-text dark:text-white my-0.5">
-                  {heading}°
-                </div>
+              {/* Heading Terukur Derajat */}
+              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-text dark:text-white my-0.5 tabular-nums">
+                {heading}°
+              </div>
 
-                <div className="text-[10px] text-text-muted dark:text-white/50">
-                  <span>S</span>
-                </div>
+              <div className="text-[10px] text-text-muted dark:text-white/50">
+                <span>S</span>
               </div>
             </div>
           </div>

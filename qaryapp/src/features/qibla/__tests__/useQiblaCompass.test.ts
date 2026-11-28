@@ -1,9 +1,34 @@
 import { describe, expect, it } from 'vitest'
 import {
+  computeHeadingFromQuaternion,
   computeTiltCompensatedHeading,
   extractHeadingFromEvent,
   smoothCircularHeading,
 } from '../useQiblaCompass'
+
+describe('computeHeadingFromQuaternion', () => {
+  it('menghitung arah Utara, Timur, Selatan, dan Barat saat ponsel datar', () => {
+    const s45 = Math.SQRT1_2
+    // Identitas -> menghadap Utara (0°)
+    expect(Math.round(computeHeadingFromQuaternion([0, 0, 0, 1], 0))).toBe(0)
+    // Rotasi -90° terhadap Z -> menghadap Timur (90°)
+    expect(Math.round(computeHeadingFromQuaternion([0, 0, -s45, s45], 0))).toBe(90)
+    // Rotasi 180° terhadap Z -> menghadap Selatan (180°)
+    expect(Math.round(computeHeadingFromQuaternion([0, 0, 1, 0], 0))).toBe(180)
+    // Rotasi +90° terhadap Z -> menghadap Barat (270°)
+    expect(Math.round(computeHeadingFromQuaternion([0, 0, s45, s45], 0))).toBe(270)
+  })
+
+  it('tetap akurat saat ponsel diangkat miring atau tegak (menggunakan proyeksi -Z)', () => {
+    const s45 = Math.SQRT1_2
+    // Ponsel diangkat tegak 90° menghadap Utara (rotasi +90° sumbu X)
+    expect(Math.round(computeHeadingFromQuaternion([s45, 0, 0, s45], 0))).toBe(0)
+
+    // Ponsel diangkat tegak 90° lalu diputar menghadap Timur: q = Rz(-90°) * Rx(+90°)
+    const half = 0.5
+    expect(Math.round(computeHeadingFromQuaternion([half, half, -half, half], 0))).toBe(90)
+  })
+})
 
 describe('computeTiltCompensatedHeading', () => {
   it('mengonversi alpha W3C (counter-clockwise) ke kompas searah jarum jam saat ponsel datar', () => {
@@ -14,7 +39,10 @@ describe('computeTiltCompensatedHeading', () => {
   })
 
   it('menghitung heading tanpa lonjakan saat ponsel dimiringkan 45° atau tegak 80°', () => {
-    expect(computeTiltCompensatedHeading(90, 45, 15, 0)).toBe(270)
+    expect(Math.round(computeTiltCompensatedHeading(90, 45, 0, 0))).toBe(270)
+    const tilted = computeTiltCompensatedHeading(90, 45, 15, 0)
+    expect(tilted).toBeGreaterThan(240)
+    expect(tilted).toBeLessThan(280)
     expect(Math.round(computeTiltCompensatedHeading(90, 80, 0, 0))).toBe(270)
     expect(Math.round(computeTiltCompensatedHeading(0, 80, 0, 0))).toBe(0)
   })
