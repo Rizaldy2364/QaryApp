@@ -24,6 +24,7 @@ export interface ReminderSettings {
 
 export interface AppSettings {
   theme: ThemeMode
+  mapTheme: ThemeMode
   arabSize: ArabSize
   showTranslation: boolean
   showTransliteration: boolean
@@ -48,6 +49,7 @@ export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
 
 export const DEFAULT_APP_SETTINGS: AppSettings = {
   theme: 'system',
+  mapTheme: 'system',
   arabSize: 'medium',
   showTranslation: true,
   showTransliteration: false,

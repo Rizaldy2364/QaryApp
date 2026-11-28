@@ -14,6 +14,7 @@ export interface QiblaMapProps {
   heading: number | null
   hasSensor: boolean
   accuracySource: CompassAccuracySource
+  mapTheme: 'light' | 'dark'
 }
 
 function buildUserArrowHtml(rotationDeg: number, isAligned: boolean): string {
@@ -46,6 +47,7 @@ export default function QiblaMap({
   heading,
   hasSensor,
   accuracySource,
+  mapTheme,
 }: QiblaMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
@@ -217,7 +219,9 @@ export default function QiblaMap({
       {/* Peta Full-Screen Background */}
       <div
         ref={containerRef}
-        className="absolute inset-0 z-0 h-full w-full"
+        className={`absolute inset-0 z-0 h-full w-full ${
+          mapTheme === 'dark' ? 'qibla-map-dark bg-[#0D1117]' : 'bg-[#E5E3DF]'
+        }`}
         aria-label="Peta arah Kiblat"
       />
 

@@ -49,6 +49,12 @@ const themeOptions = [
   { value: 'system', label: 'Ikut sistem' },
 ]
 
+const mapThemeOptions = [
+  { value: 'light', label: 'Terang' },
+  { value: 'dark', label: 'Gelap' },
+  { value: 'system', label: 'Ikut tema' },
+]
+
 const arabSizeOptions = [
   { value: 'small', label: 'Kecil' },
   { value: 'medium', label: 'Sedang' },
@@ -139,6 +145,10 @@ export function ProfilePage() {
     const mode = newTheme as ThemeMode
     setTheme(mode)
     updateSettings({ theme: mode })
+  }
+
+  const handleMapThemeChange = (newTheme: string) => {
+    updateSettings({ mapTheme: newTheme as ThemeMode })
   }
 
   const handleArabSizeChange = (newSize: string) => {
@@ -411,6 +421,18 @@ export function ProfilePage() {
                 options={themeOptions}
                 value={theme}
                 onChange={handleThemeChange}
+              />
+            </div>
+
+            {/* 1b. Pengaturan Tema Peta Kiblat */}
+            <div className="p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-text">Tema peta Kiblat</span>
+              </div>
+              <SegmentedControl
+                options={mapThemeOptions}
+                value={settings.mapTheme}
+                onChange={handleMapThemeChange}
               />
             </div>
 

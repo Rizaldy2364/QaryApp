@@ -231,6 +231,7 @@ export function migrateAppSettings(parsed: Partial<AppSettings> | null | undefin
 
   return {
     theme: parsed.theme ?? DEFAULT_APP_SETTINGS.theme,
+    mapTheme: parsed.mapTheme ?? DEFAULT_APP_SETTINGS.mapTheme,
     arabSize: parsed.arabSize ?? DEFAULT_APP_SETTINGS.arabSize,
     showTranslation:
       typeof parsed.showTranslation === 'boolean'
