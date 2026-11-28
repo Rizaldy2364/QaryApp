@@ -1,8 +1,13 @@
-import { Outlet } from 'react-router'
+import { Outlet, useLocation, useNavigationType } from 'react-router'
 
 export function StackLayout() {
+  const location = useLocation()
+  const navigationType = useNavigationType()
+  const animClass =
+    navigationType === 'POP' ? 'animate-page-pop' : 'animate-page-push'
+
   return (
-    <div className="min-h-screen bg-bg text-text flex flex-col">
+    <div className="min-h-screen overflow-x-hidden bg-bg text-text flex flex-col">
       {/* Skip Link untuk aksesibilitas navigasi papan ketik */}
       <a
         href="#main-content"
@@ -16,7 +21,9 @@ export function StackLayout() {
         tabIndex={-1}
         className="w-full flex-1 pb-8 focus:outline-none"
       >
-        <Outlet />
+        <div key={location.pathname} className={`w-full ${animClass}`}>
+          <Outlet />
+        </div>
       </main>
     </div>
   )
