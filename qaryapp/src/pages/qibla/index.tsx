@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { MapPin, ChevronDown, AlertTriangle } from 'lucide-react'
 import { useSettings } from '../../features/settings/useSettings'
+import { useTheme } from '../../lib/theme'
 import { usePageTitle } from '../../lib/usePageTitle'
 import { useQiblaCompass } from '../../features/qibla/useQiblaCompass'
 import {
@@ -98,7 +99,10 @@ function QiblaHeaderControls({
 export default function QiblaPage() {
   usePageTitle('Kiblat')
   const { settings } = useSettings()
+  const { resolvedTheme } = useTheme()
   const location = settings.location
+  const effectiveMapTheme: 'light' | 'dark' =
+    settings.mapTheme === 'system' ? resolvedTheme : settings.mapTheme
 
   // Koordinat lokasi (fallback Jakarta jika lokasi belum dipilih)
   const userLat = location?.coordinates?.latitude ?? -6.2088
@@ -186,6 +190,7 @@ export default function QiblaPage() {
               heading={heading}
               hasSensor={hasSensor}
               accuracySource={accuracySource}
+              mapTheme={effectiveMapTheme}
             />
           </Suspense>
         </div>
